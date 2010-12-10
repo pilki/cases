@@ -24,6 +24,8 @@
 open Term
 open Names
 open Coqlib
+open Termops
+open Pp
 
 (* Getting constrs (primitive Coq terms) from exisiting Coq libraries. *)
 
@@ -80,6 +82,51 @@ let constructors env c =
       (mkApp (Lazy.force coq_list_nil, [| Lazy.force coq_dynamic_ind |]))
   in listval, listty
 
+(* below, functions to turn a caml string into a coq string, adapted
+   from the parse string module *)
+
+let ascii_module = ["Coq";"Strings";"Ascii"]
+let coq_Ascii = lazy (init_constant ascii_module "Ascii")
+
+let init_module = ["Coq";"Init";"Datatypes"]
+let coq_true = lazy (init_constant init_module "true")
+let coq_false = lazy (init_constant init_module "false")
+
+let string_module = ["Coq";"Strings";"String"]
+
+let coq_string = lazy (init_constant string_module "string")
+let coq_String = lazy (init_constant string_module "String")
+let coq_EmptyString = lazy (init_constant string_module "EmptyString")
+
+
+let (!!) = Lazy.force
+
+let ascii_of_int p =
+  let rec aux n p =
+     if n = 0 then [] else
+     let mp = p mod 2 in
+     (if mp = 0 then !!coq_false else !!coq_true)
+     :: (aux (n-1) (p/2)) in
+  mkApp (Lazy.force coq_Ascii, Array.of_list (aux 8 p))
+
+
+let coqstring_of_string s =
+  let le = String.length s in
+  let rec aux n =
+     if n = le then !!coq_EmptyString else
+     mkApp 
+       ((!!coq_String),
+        [| ascii_of_int (int_of_char s.[n]); aux (n+1)|])
+  in aux 0
+
+let string_of_constr env c =
+  let stream = print_constr_env env c in
+  msg_with Format.str_formatter stream;
+  Format.flush_str_formatter ()
+
+let coqstring_of_constr env c =
+  coqstring_of_string (string_of_constr env c)
+
 open Tacmach
 open Tacticals
 open Tacexpr
@@ -89,6 +136,29 @@ open Tacinterp
    matching the list of constructors (see [letin_tac] below). *)
 
 let nowhere = { onhyps = Some []; concl_occs = Rawterm.no_occurrences_expr }
+
+
+let apply_tac_leave_str env ind tac id =
+(* Decompose the application of the inductive type to params and arguments. *)
+  let ind, args = Inductive.find_rectype env ind in
+  (* Find information about it (constructors, other inductives in the same block...) *)
+  let mindspec = Global.lookup_inductive ind in
+  (* The array of tactics to be applied. I don't know how to get the
+     number of constructors of an inductive *)
+  let next_tacs =
+    Array.mapi (fun i _ ->
+      let cd = mkConstruct (ind, succ i) in
+      let s =  coqstring_of_constr env cd in
+      Tactics.letin_tac None (Name id) s (Some (!!coq_string)) nowhere
+      )
+      (Inductive.type_of_constructors ind mindspec) in
+  tclTHENSV tac next_tacs
+
+
+
+
+
+
 
 (* This adds an entry to the grammar of tactics, similar to what
    Tactic Notation does. There's currently no way to return a term 
@@ -100,6 +170,22 @@ TACTIC EXTEND constructors_of_in
       let v, t = constructors (pf_env gl) c in
 	(* Defined the list in the context using name [id]. *)
 	Tactics.letin_tac None (Name id) v (Some t) nowhere gl
+    ]
+END
+
+TACTIC EXTEND string_of_in
+| ["string" "of" constr(c) "in" ident(id) ] -> 
+    [ fun gl -> (* The current goal *)
+      let s =  coqstring_of_string (string_of_constr (pf_env gl) c) in
+	(* Defined the list in the context using name [id]. *)
+	Tactics.letin_tac None (Name id) s (Some (!!coq_string)) nowhere gl
+    ]
+END
+
+TACTIC EXTEND apply_to_ind
+| ["run_tac" tactic(tac) "on" constr(ind) "in" ident(id) ] -> 
+    [ fun gl -> (* The current goal *)
+      apply_tac_leave_str (pf_env gl) ind (snd tac) id gl
     ]
 END
 
