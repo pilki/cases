@@ -1,4 +1,11 @@
-Require Import Constructors Bvector.
+(***********************************************************)
+(* Copyright 2010 Alexandre Pilkiewicz (pilki@pilki.fr)    *)
+(* This file is distributed under the terms of the         *)
+(* GNU Lesser General Public License Version 2.1           *)
+(***********************************************************)
+
+Declare ML Module "case_tactics_plugin".
+
 Require String. Open Scope string_scope.
 
 Notation "s1 ^^ s2" := (String.append s1 s2) (right associativity, at level 60).
@@ -94,30 +101,3 @@ Tactic Notation "induction'" ident(id)
 Tactic Notation "induction'" ident(id)
      "as" simple_intropattern(pat):=
   cases id (induction id) as pat.
-
-
-
-
-Inductive foo : Type :=
-| foo1 : nat -> foo
-| foo2 : foo.
-
-
-Inductive bar: nat -> Prop :=
-| barO: forall b:bool, bar O
-| barS: forall n (f: False), bar (S n).
-
-
-Goal forall (f: foo) (n: nat) (l: list (bar n)), True.
-Proof.
-  intros.
-  induction' f as [n'|]. induction' n. induction' l.
-  Case "foo1 n'"; SCase "0"; SSCase "@nil".
-  auto.
-  Case "foo1 n'"; SCase "0"; SSCase "cons".
-  auto.
-  Case "foo1 n'"; SCase "S".
-  auto.
-  Case "foo2".
-  auto.
-Qed.

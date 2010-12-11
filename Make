@@ -1,13 +1,12 @@
--I src -R theories Constructors
--custom "$(CAMLOPTLINK) $(ZDEBUG) $(ZFLAGS) -shared -o src/constructors_plugin.cmxs src/constructors.cmx src/constructors_plugin_mod.cmx" "src/constructors.cmx src/constructors_plugin_mod.cmx" src/constructors_plugin.cmxs
--custom "$(CAMLLINK) -g -a -o src/constructors_plugin.cma src/constructors.cmo src/constructors_plugin_mod.cmo" "src/constructors.cmo src/constructors_plugin_mod.cmo" src/constructors_plugin.cma
--custom "$(COQBIN)coqc $(COQDEBUG) $(COQFLAGS) $*" "%.v $(CONSTRUCTORS_PLUGINOPT) $(CONSTRUCTORS_PLUGIN)" "%.vo %.glob"
-CONSTRUCTORS_PLUGIN = "src/constructors_plugin.cma"
-CONSTRUCTORS_PLUGINOPT = "src/constructors_plugin.cmxs"
+-I src -R theories Case_Tactics
+-custom "$(CAMLOPTLINK) $(ZDEBUG) $(ZFLAGS) -shared -o src/case_tactics_plugin.cmxs src/case_tactics.cmx src/case_tactics_plugin_mod.cmx" "src/case_tactics.cmx src/case_tactics_plugin_mod.cmx" src/case_tactics_plugin.cmxs
+-custom "$(CAMLLINK) -g -a -o src/case_tactics_plugin.cma src/case_tactics.cmo src/case_tactics_plugin_mod.cmo" "src/case_tactics.cmo src/case_tactics_plugin_mod.cmo" src/case_tactics_plugin.cma
+-custom "$(COQBIN)coqc $(COQDEBUG) $(COQFLAGS) $*" "%.v $(CASE_TACTICS_PLUGINOPT) $(CASE_TACTICS_PLUGIN)" "%.vo %.glob"
+CASE_TACTICS_PLUGIN = "src/case_tactics_plugin.cma"
+CASE_TACTICS_PLUGINOPT = "src/case_tactics_plugin.cmxs"
 COQDOC = "$(COQBIN)coqdoc -interpolate -utf8"
 CAMLP4OPTIONS = "-loc loc"
-src/constructors.ml
-src/constructors_plugin_mod.ml
-theories/Dynamic.v
-theories/Constructors.v
-test-suite/constructortac.v
+src/case_tactics.ml
+src/case_tactics_plugin_mod.ml
+theories/Case_Tactics.v
+test-suite/case_tactics_ex.v
