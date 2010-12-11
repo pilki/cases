@@ -45,22 +45,57 @@ Ltac fst_Case_tac s :=
     | fst_Case_aux SSSSSSCase (SSSSSSCase) s
     | fst_Case_aux SSSSSSSCase (SSSSSSSCase) s].
 
+(* [cases ty tac c] runs the tactic tac and produces the cases of
+   inductive ty with tactic c. If ty is not an inductive but has an
+   inductive type, its type is used *)
+Ltac ind_type ty :=
+    match type of ty with
+      | Prop => ty
+      | Type => ty
+      | Set => ty
+      | ?T => T
+    end.
+
 Tactic Notation "cases" constr(ind) tactic(ftac) tactic(c) :=
+  let t := ind_type ind in
   let constr_name := fresh "CONSTR_NAME" in
-  (run_tac (ftac) on ind in constr_name);
+  (run_tac (ftac) on t in constr_name);
   (let n := eval cbv in constr_name in clear constr_name; c n).
 
 Tactic Notation "cases" constr(ind) tactic(ftac) :=
+  let t := ind_type ind in
   let constr_name := fresh "CONSTR_NAME" in
-  (run_tac (ftac) on ind in constr_name);
+  (run_tac (ftac) on t in constr_name);
   (let n := eval cbv in constr_name in clear constr_name; fst_Case_tac n).
 
+Tactic Notation "cases" constr(ind) tactic(ftac)
+     "as" simple_intropattern(pat) tactic(c) :=
+  let t := ind_type ind in
+  let constr_name := fresh "CONSTR_NAME" in
+  (run_tac (ftac) on t as pat in constr_name);
+  (let n := eval cbv in constr_name in clear constr_name; c n).
+
+Tactic Notation "cases" constr(ind) tactic(ftac)
+     "as" simple_intropattern(pat) :=
+  let t := ind_type ind in
+  let constr_name := fresh "CONSTR_NAME" in
+  (run_tac (ftac) on t as pat in constr_name);
+  (let n := eval cbv in constr_name in clear constr_name; fst_Case_tac n).
+
+
 Tactic Notation "induction'" ident(id) tactic(c) :=
-  let t := type of id in
-  cases t (induction id) c.
+  cases id (induction id) c.
 Tactic Notation "induction'" ident(id):=
-  let t := type of id in
-  cases t (induction id).
+  cases id (induction id).
+
+Tactic Notation "induction'" ident(id)
+     "as" simple_intropattern(pat) tactic(c) :=
+  cases id (induction id) as pat c.
+Tactic Notation "induction'" ident(id)
+     "as" simple_intropattern(pat):=
+  cases id (induction id) as pat.
+
+
 
 
 Inductive foo : Type :=
@@ -76,14 +111,13 @@ Inductive bar: nat -> Prop :=
 Goal forall (f: foo) (n: nat) (l: list (bar n)), True.
 Proof.
   intros.
-  induction' f. induction' n. induction' l.
-  Case "foo1". SCase "0". SSCase "@nil".
+  induction' f as [n'|]. induction' n. induction' l.
+  Case "foo1 n'"; SCase "0"; SSCase "@nil".
   auto.
-  Case "foo1". SCase "0". SSCase "cons".
+  Case "foo1 n'"; SCase "0"; SSCase "cons".
   auto.
-  Case "foo1". SCase "S".
-  auto. 
+  Case "foo1 n'"; SCase "S".
+  auto.
   Case "foo2".
   auto.
 Qed.
-  

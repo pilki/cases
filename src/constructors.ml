@@ -131,6 +131,8 @@ open Tacmach
 open Tacticals
 open Tacexpr
 open Tacinterp
+open Genarg
+open Util
 
 (* A clause specifying that the [let] should not try to fold anything the goal
    matching the list of constructors (see [letin_tac] below). *)
@@ -138,20 +140,71 @@ open Tacinterp
 let nowhere = { onhyps = Some []; concl_occs = Rawterm.no_occurrences_expr }
 
 
-let apply_tac_leave_str env ind tac id =
+let rec get_names_aux (_,pat) = match pat with
+  | IntroWildcard -> "_"
+  | IntroAnonymous -> "?"
+  | IntroForthcoming _ ->
+      error "Forthcoming pattern not allowed"
+  | IntroFresh id ->
+      "?" ^ (string_of_id id)
+  | IntroRewrite _->
+      error "Rewriting pattern not allowed"
+  | IntroOrAndPattern [l] ->
+      let l = List.map get_names_aux l in
+      "(" ^ (String.concat ", "  l) ^")"
+  | IntroOrAndPattern l ->
+      error "Disjunctive patterns not allowed"
+  | IntroIdentifier id ->
+      string_of_id id
+
+let get_names ((_, pat) as lpat) = match pat with
+(* we accept an empty pattern for the "destruction" tactic, since it
+    is needed to allow the _eqn thing *)
+
+| IntroOrAndPattern [[]] -> None
+| IntroOrAndPattern l ->
+    let lnames =
+      List.map
+       (fun conj ->
+         String.concat " " (List.map get_names_aux conj)) l in
+    Some (Array.of_list lnames)
+| _ -> Some [| get_names_aux lpat|]
+
+
+let apply_tac_leave_str env ind tac id opat =
+  let names = 
+    match opat with
+    | None -> None
+    | Some pat ->
+        get_names pat in
 (* Decompose the application of the inductive type to params and arguments. *)
-  let ind, args = Inductive.find_rectype env ind in
+  let ind, args =
+    try Inductive.find_rectype env ind
+    with Not_found -> error "Unknown inductive"
+  in
   (* Find information about it (constructors, other inductives in the same block...) *)
   let mindspec = Global.lookup_inductive ind in
   (* The array of tactics to be applied. I don't know how to get the
      number of constructors of an inductive *)
+  let types = Inductive.type_of_constructors ind mindspec in
+ ( match names with
+  | None -> ()
+  | Some a ->
+      if Array.length a <> Array.length types then
+        error "The intro pattern has a wrong number of cases");
   let next_tacs =
     Array.mapi (fun i _ ->
       let cd = mkConstruct (ind, succ i) in
-      let s =  coqstring_of_constr env cd in
-      Tactics.letin_tac None (Name id) s (Some (!!coq_string)) nowhere
-      )
-      (Inductive.type_of_constructors ind mindspec) in
+      let s =  string_of_constr env cd in
+      let s' =
+        match names with
+        | None -> coqstring_of_string s
+        | Some a ->
+            let n = if a.(i) = "" then "" else " " ^ a.(i) in
+            coqstring_of_string (s ^ n)
+      in
+      Tactics.letin_tac None (Name id) s' (Some (!!coq_string)) nowhere
+      ) types in
   tclTHENSV tac next_tacs
 
 
@@ -185,7 +238,11 @@ END
 TACTIC EXTEND apply_to_ind
 | ["run_tac" tactic(tac) "on" constr(ind) "in" ident(id) ] -> 
     [ fun gl -> (* The current goal *)
-      apply_tac_leave_str (pf_env gl) ind (snd tac) id gl
+      apply_tac_leave_str (pf_env gl) ind (snd tac) id None gl
+    ]
+| ["run_tac" tactic(tac) "on" constr(ind)
+     "as" simple_intropattern(ipat) "in" ident(id) ] -> 
+    [ fun gl -> (* The current goal *)
+      apply_tac_leave_str (pf_env gl) ind (snd tac) id (Some ipat) gl
     ]
 END
-
