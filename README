@@ -15,7 +15,12 @@ src/ contains the code of the plugin in case_tactics.ml and
 theories/ contains support Coq file for the plugin.
   Case_Tactics.v declares the plugin on the Coq side.
 
-test-suite/ just demonstrates a use of the plugin
+test-suite/ demonstrates a use of the plugin
+
+the file insert_case.el contains two emacs functions, insert-case and
+insert-all-cases that get the current Case (of (S*)Case) from the
+context and copy them in the development script. Just add the content
+to your .emacs to use it
 
 
 Installation
