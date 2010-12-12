@@ -2,16 +2,17 @@ Case_Tactics: a variation on the (S*)Case tactics by Aaron Bohannon
 
 ===================================
 Copyright 2010 Alexandre Pilkiewicz (pilki@pilki.fr)
-Distributed under the terms of the GNU Lesser General
-Public License Version 2.1, see LICENSE for details.
 
+ML module distributed under the terms of the GNU Lesser General Public
+License Version 2.1, see LICENSE for details.
+
+Coq files in public domain (WTF Public Licence)
 
 The archive has 3 subdirectories:
 src/ contains the code of the plugin in case_tactics.ml and
   a support file for building the case_tactics plugin.
 
-theories/ contains support Coq files for the plugin. Dynamic.v
-  is referenced from the code of the plugin above.
+theories/ contains support Coq file for the plugin.
   Case_Tactics.v declares the plugin on the Coq side.
 
 test-suite/ just demonstrates a use of the plugin
