@@ -3,6 +3,9 @@ Case_Tactics: a variation on the (S*)Case tactics by Aaron Bohannon
 ===================================
 Copyright 2010 Alexandre Pilkiewicz (pilki@pilki.fr)
 
+Adapted form the Constructors plugin by Matthieu Sozeau
+https://github.com/mattam82/Constructors
+
 ML module distributed under the terms of the GNU Lesser General Public
 License Version 2.1, see LICENSE for details.
 

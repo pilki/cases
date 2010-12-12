@@ -5,6 +5,10 @@
 (* GNU Lesser General Public License Version 2.1           *)
 (***********************************************************)
 
+(* the file is adapted from the Constructors plugin by Matthieu Sozeau
+   https://github.com/mattam82/Constructors
+*)
+
 (* These are necessary for grammar extensions like the one at the end 
    of the module *)
 

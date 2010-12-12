@@ -8,9 +8,9 @@
 (* for more details.                                               *)
 (*******************************************************************)
 
-
 Declare ML Module "case_tactics_plugin".
 
+(* (S* )Case tactics by Aaron Bohannon *)
 Require String. Open Scope string_scope.
 
 Notation "s1 ^^ s2" := (String.append s1 s2) (right associativity, at level 60).
@@ -40,6 +40,8 @@ Ltac SSSSSCase name := Case_aux SSSSSCase name.
 Ltac SSSSSSCase name := Case_aux SSSSSSCase name.
 Ltac SSSSSSSCase name := Case_aux SSSSSSSCase name.
 
+
+(* tacic to get the first available (S* )Case tactic *)
 Tactic Notation "exists_hyp" hyp(H) :=
   idtac.
 
