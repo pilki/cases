@@ -1,8 +1,13 @@
-(***********************************************************)
-(* Copyright 2010 Alexandre Pilkiewicz (pilki@pilki.fr)    *)
-(* This file is distributed under the terms of the         *)
-(* GNU Lesser General Public License Version 2.1           *)
-(***********************************************************)
+(*******************************************************************)
+(* Copyright 2010 Alexandre Pilkiewicz                             *)
+(*     <alexandre.pilkiewicz@polytechnique.org >                   *)
+(* This program is free software. It comes without any warranty,   *)
+(* to the extent permitted by applicable law. You can redistribute *)
+(* it and/or modify it under the terms of the WTFPL, Version 2, as *)
+(* published by Sam Hocevar. See http://sam.zoy.org/wtfpl/COPYING  *)
+(* for more details.                                               *)
+(*******************************************************************)
+
 
 Declare ML Module "case_tactics_plugin".
 
@@ -97,7 +102,29 @@ Tactic Notation "induction'" ident(id):=
 
 Tactic Notation "induction'" ident(id)
      "as" simple_intropattern(pat) tactic(c) :=
-  cases id (induction id) as pat c.
+  cases id (induction id as pat) as pat c.
 Tactic Notation "induction'" ident(id)
      "as" simple_intropattern(pat):=
-  cases id (induction id) as pat.
+  cases id (induction id as pat) as pat.
+
+
+Tactic Notation "destruct'" ident(id) tactic(c) :=
+  cases id (destruct id) c.
+Tactic Notation "destruct'" ident(id):=
+  cases id (destruct id).
+
+Tactic Notation "destruct'" ident(id)
+     "as" simple_intropattern(pat) tactic(c) :=
+  cases id (destruct id as pat) as pat c.
+Tactic Notation "destruct'" ident(id)
+     "as" simple_intropattern(pat):=
+  cases id (destruct id as pat) as pat.
+
+Tactic Notation "destruct'" ident(id)
+     "as" simple_intropattern(pat) "_eqn" tactic(c) :=
+  cases id (destruct id as pat _eqn) as pat c.
+Tactic Notation "destruct'" ident(id)
+     "as" simple_intropattern(pat) "_eqn":=
+  cases id (destruct id as pat _eqn) as pat.
+
+

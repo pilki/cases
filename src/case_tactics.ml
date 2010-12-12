@@ -1,5 +1,6 @@
 (***********************************************************)
-(* Copyright 2010 Alexandre Pilkiewicz (pilki@pilki.fr)    *)
+(* Copyright 2010 Alexandre Pilkiewicz                     *)
+(*     <alexandre.pilkiewicz@polytechnique.org >           *)
 (* This file is distributed under the terms of the         *)
 (* GNU Lesser General Public License Version 2.1           *)
 (***********************************************************)

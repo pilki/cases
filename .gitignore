@@ -11,3 +11,4 @@
 *.ml.d
 *.o
 /pcoq
+/Makefile

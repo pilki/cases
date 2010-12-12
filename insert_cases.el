@@ -58,7 +58,7 @@
         )
       )
     )
-  (if cont (insert (concat cont ". "))))
+  (if cont (insert (concat cont "."))))
 )
 
 (global-set-key (kbd "C-c C-a C-q") 'insert-all-cases)
