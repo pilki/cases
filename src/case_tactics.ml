@@ -209,37 +209,50 @@ let hyp_name_of =
 (* build the list of names of hypothesis that will become sub goals,
    among the n first hypothesis of the type*)
 
-let rec list_of_no_dep_names limit exclude_num excude_names x =
-  let rec build n c =
+let rec list_of_no_dep_names limit exclude_num x =
+  let rec build n nth_non_dep c =
     if n = 0 then [] else 
     match kind_of_term c with
     | Prod(na, _, t2) ->
         let dep = dependent (mkRel 1) t2 in
         (* I *think* that an argument becomes a subgoal when it the
            rest is not dependent on it *)
-        if dep then build (pred n) t2 else
+        if dep then build (pred n) nth_non_dep t2 else
         let hyp_name = hyp_name_of na in
         (* TODO: add checks with exclude *)
-        hyp_name :: build (pred n) t2
-    | LetIn(_,a,_,t) -> build n (subst1 a t)
-    | Cast(t,_,_) -> build n t
+        let tail = build (pred n) (succ nth_non_dep) t2 in
+        if List.mem nth_non_dep exclude_num then tail else hyp_name :: tail
+    | LetIn(_,a,_,t) -> build n nth_non_dep (subst1 a t)
+    | Cast(t,_,_) -> build n nth_non_dep t
     | _ -> []
-  in build limit x
+  in build limit 0 x
 
-let build_apply' app thm id gl =
+open Rawterm
+
+let build_apply' app thm_wb id gl =
+  let thm,bl = sig_it thm_wb in
+  let rec mkexcludes = function
+    | [] -> []
+    | (_, AnonHyp n, _) :: l -> n :: mkexcludes l
+    | _ :: l -> mkexcludes l in
+  let exclude_num =
+    match bl with
+    | NoBindings
+    | ImplicitBindings _ -> []
+    | ExplicitBindings ebs -> mkexcludes ebs in
   let concl_nprod = nb_prod (pf_concl gl) in
   let thm_ty = Reductionops.nf_betaiota (project gl) (pf_type_of gl thm) in
   let t_nprod = nb_prod thm_ty in
   let n = t_nprod - concl_nprod in
-  let lst_name = list_of_no_dep_names n [] [] thm_ty in
-  tclTHENS (app thm) (List.map (fun s -> letin_string id s) lst_name) gl
-    
+  let lst_name = list_of_no_dep_names n exclude_num thm_ty in
+  tclTHENS (app (sig_it thm_wb)) (List.map (fun s -> letin_string id s) lst_name) gl
+
 TACTIC EXTEND apply_aux
-| ["apply_aux" constr(c) "resin" ident(id) ] -> 
-    [ build_apply' Tactics.apply c id]
+| ["apply_aux" constr_with_bindings(c) "resin" ident(id) ] -> 
+    [ build_apply' Tactics.apply_with_bindings c id]
 END
 
 TACTIC EXTEND eapply_aux
-| ["eapply_aux" constr(c) "resin" ident(id) ] -> 
-    [ build_apply' Tactics.eapply c id]
+| ["eapply_aux" constr_with_bindings(c) "resin" ident(id) ] -> 
+    [ build_apply' Tactics.eapply_with_bindings c id]
 END
