@@ -40,6 +40,35 @@ Ltac SSSSSCase name := Case_aux SSSSSCase name.
 Ltac SSSSSSCase name := Case_aux SSSSSSCase name.
 Ltac SSSSSSSCase name := Case_aux SSSSSSSCase name.
 
+(* The R(S* )Case tactics rename the case. Usefull for the apply'
+   tactic *)
+
+Tactic Notation "RCase_aux" ident(x) constr(old) constr(new) :=
+  first [
+   assert_eq x old; clear x; set (x := new); simpl in x;  move_to_top x
+  | fail 1 "because we are working on a different case" ].
+
+Ltac RCase old new := RCase_aux Case old new.
+Ltac RSCase old new := RCase_aux SCase old new.
+Ltac RSSCase old new := RCase_aux SSCase old new.
+Ltac RSSSCase old new := RCase_aux SSSCase old new.
+Ltac RSSSSCase old new := RCase_aux SSSSCase old new.
+Ltac RSSSSSCase old new := RCase_aux SSSSSCase old new.
+Ltac RSSSSSSCase old new := RCase_aux SSSSSSCase old new.
+Ltac RSSSSSSSCase old new := RCase_aux SSSSSSSCase old new.
+
+(* N(S* )Case are instanciation of RS*Case on "NONAMEGOAL", the name
+   produce by apply' when no name is available *)
+Ltac NCase := RCase "NONAMEGOAL".
+Ltac NSCase := RSCase "NONAMEGOAL".
+Ltac NSSCase := RSSCase "NONAMEGOAL".
+Ltac NSSSCase := RSSSCase "NONAMEGOAL".
+Ltac NSSSSCase := RSSSSCase "NONAMEGOAL".
+Ltac NSSSSSCase := RSSSSSCase "NONAMEGOAL".
+Ltac NSSSSSSCase := RSSSSSSCase "NONAMEGOAL".
+Ltac NSSSSSSSCase := RSSSSSSSCase "NONAMEGOAL".
+
+
 
 (* tacic to get the first available (S* )Case tactic *)
 Tactic Notation "exists_hyp" hyp(H) :=
@@ -130,3 +159,12 @@ Tactic Notation "destruct'" ident(id)
   cases id (destruct id as pat _eqn) as pat.
 
 
+Tactic Notation "apply'" constr(c) :=
+  let name_of_case := fresh "NAMEOFCASE" in
+  (apply_aux c resin name_of_case);
+  (let n := eval cbv in name_of_case in clear name_of_case; fst_Case_tac n).
+
+Tactic Notation "eapply'" constr(c) :=
+  let name_of_case := fresh "NAMEOFCASE" in
+  (eapply_aux c resin name_of_case);
+  (let n := eval cbv in name_of_case in clear name_of_case; fst_Case_tac n).

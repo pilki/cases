@@ -165,7 +165,8 @@ let apply_tac_leave_str env ind tac id opat =
   tclTHENSV tac next_tacs
 
 
-
+let letin_string id cs =
+  Tactics.letin_tac None (Name id) cs (Some (!!coq_string)) nowhere
 
 (* This adds an entry to the grammar of tactics, similar to what
    Tactic Notation does. There's currently no way to return a term 
@@ -177,12 +178,12 @@ TACTIC EXTEND string_of_in
     [ fun gl -> (* The current goal *)
       let s =  coqstring_of_string (string_of_constr (pf_env gl) c) in
 	(* Defined the list in the context using name [id]. *)
-	Tactics.letin_tac None (Name id) s (Some (!!coq_string)) nowhere gl
+      letin_string id s gl
     ]
 END
 
 (* tactic that runs a tac and write in "id" the name of the branch we are in *)
-TACTIC EXTEND apply_to_ind
+TACTIC EXTEND run_tac_on_ind
 | ["run_tac" tactic(tac) "on" constr(ind) "in" ident(id) ] -> 
     [ fun gl -> (* The current goal *)
       apply_tac_leave_str (pf_env gl) ind (snd tac) id None gl
@@ -192,4 +193,53 @@ TACTIC EXTEND apply_to_ind
     [ fun gl -> (* The current goal *)
       apply_tac_leave_str (pf_env gl) ind (snd tac) id (Some ipat) gl
     ]
+END
+
+
+
+
+(* build the coqstring from the hypothesis *)
+let hyp_name_of =
+  let no_name = lazy (coqstring_of_string "NONAMEGOAL") in
+  function
+    | Anonymous -> !!no_name
+    | Name id -> coqstring_of_string (string_of_id id)
+
+
+(* build the list of names of hypothesis that will become sub goals,
+   among the n first hypothesis of the type*)
+
+let rec list_of_no_dep_names limit exclude_num excude_names x =
+  let rec build n c =
+    if n = 0 then [] else 
+    match kind_of_term c with
+    | Prod(na, _, t2) ->
+        let dep = dependent (mkRel 1) t2 in
+        (* I *think* that an argument becomes a subgoal when it the
+           rest is not dependent on it *)
+        if dep then build (pred n) t2 else
+        let hyp_name = hyp_name_of na in
+        (* TODO: add checks with exclude *)
+        hyp_name :: build (pred n) t2
+    | LetIn(_,a,_,t) -> build n (subst1 a t)
+    | Cast(t,_,_) -> build n t
+    | _ -> []
+  in build limit x
+
+let build_apply' app thm id gl =
+  let concl_nprod = nb_prod (pf_concl gl) in
+  let thm_ty = Reductionops.nf_betaiota (project gl) (pf_type_of gl thm) in
+  let t_nprod = nb_prod thm_ty in
+  let n = t_nprod - concl_nprod in
+  let lst_name = list_of_no_dep_names n [] [] thm_ty in
+  tclTHENS (app thm) (List.map (fun s -> letin_string id s) lst_name) gl
+    
+TACTIC EXTEND apply_aux
+| ["apply_aux" constr(c) "resin" ident(id) ] -> 
+    [ build_apply' Tactics.apply c id]
+END
+
+TACTIC EXTEND eapply_aux
+| ["eapply_aux" constr(c) "resin" ident(id) ] -> 
+    [ build_apply' Tactics.eapply c id]
 END

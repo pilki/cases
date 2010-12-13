@@ -191,3 +191,32 @@ Proof.
   Case "foo <> bar"; SCase "bar = baz".
   apply H. subst. assumption.
 Qed.
+
+
+(* let's show how the apply' (and eapply') work *)
+
+Lemma refl: forall (n m: nat) (EQ: n = m), m = n.
+Proof. auto. Qed.
+
+Lemma trans : forall (n m:nat) 
+  (nEQm: n = m) (p:nat), m = p-> n = p.
+Proof. congruence. Qed.
+
+
+Lemma refl_trans: forall (n m p: nat), n = m -> m = p -> p = n.
+Proof.
+  intros n m p EQnm EQmp.
+  (* we first apply refl *)
+  apply' refl.
+  (* Case := "EQ" has been automatically inserted (ok, not super
+     useful here since we have only one subgoal. But it's an exemple
+     file *)
+  Case "EQ".
+  eapply' trans.
+  SCase "nEQm".
+  eassumption.
+  (* Note here that this hypothesis was not named. An arbitrary name
+     has been chosen. It can be replaced by the NSCase tactic *)
+  NSCase "mEQp".
+  assumption.
+Qed.
