@@ -99,31 +99,32 @@ Ltac ind_type ty :=
       | ?T => T
     end.
 
+Tactic Notation "put_in_case" ident(id) tactic(c):=
+  (let n := eval cbv in id in clear id; c n).
+Tactic Notation "put_in_fst_case" ident (id) :=
+  put_in_case id fst_Case_tac.
+
+
 Tactic Notation "cases" constr(ind) tactic(ftac) tactic(c) :=
   let t := ind_type ind in
   let constr_name := fresh "CONSTR_NAME" in
   (run_tac (ftac) on t in constr_name);
-  (let n := eval cbv in constr_name in clear constr_name; c n).
+  put_in_case constr_name c.
 
 Tactic Notation "cases" constr(ind) tactic(ftac) :=
-  let t := ind_type ind in
-  let constr_name := fresh "CONSTR_NAME" in
-  (run_tac (ftac) on t in constr_name);
-  (let n := eval cbv in constr_name in clear constr_name; fst_Case_tac n).
+  cases ind (ftac) (fst_Case_tac).
+
 
 Tactic Notation "cases" constr(ind) tactic(ftac)
      "as" simple_intropattern(pat) tactic(c) :=
   let t := ind_type ind in
   let constr_name := fresh "CONSTR_NAME" in
   (run_tac (ftac) on t as pat in constr_name);
-  (let n := eval cbv in constr_name in clear constr_name; c n).
+  put_in_case constr_name c.
 
 Tactic Notation "cases" constr(ind) tactic(ftac)
      "as" simple_intropattern(pat) :=
-  let t := ind_type ind in
-  let constr_name := fresh "CONSTR_NAME" in
-  (run_tac (ftac) on t as pat in constr_name);
-  (let n := eval cbv in constr_name in clear constr_name; fst_Case_tac n).
+  cases ind ftac as pat fst_Case_tac.
 
 
 Tactic Notation "induction'" ident(id) tactic(c) :=
@@ -159,12 +160,19 @@ Tactic Notation "destruct'" ident(id)
   cases id (destruct id as pat _eqn) as pat.
 
 
-Tactic Notation "apply'" constr(c) :=
+Tactic Notation "apply'" constr(thm) tactic(c) :=
   let name_of_case := fresh "NAMEOFCASE" in
-  (apply_aux c resin name_of_case);
-  (let n := eval cbv in name_of_case in clear name_of_case; fst_Case_tac n).
+  (apply_aux thm resin name_of_case);
+  put_in_case name_of_case c.
 
-Tactic Notation "eapply'" constr(c) :=
+Tactic Notation "apply'" constr(thm) :=
+  apply' thm fst_Case_tac.
+
+Tactic Notation "eapply'" constr(thm) tactic(c):=
   let name_of_case := fresh "NAMEOFCASE" in
-  (eapply_aux c resin name_of_case);
-  (let n := eval cbv in name_of_case in clear name_of_case; fst_Case_tac n).
+  (eapply_aux thm resin name_of_case);
+  put_in_case name_of_case c.
+
+Tactic Notation "eapply'" constr(thm) :=
+  eapply' thm fst_Case_tac.
+
