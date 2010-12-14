@@ -176,3 +176,19 @@ Tactic Notation "eapply'" constr(*_with_bindings*)(thm) tactic(c):=
 Tactic Notation "eapply'" constr(*_with_bindings*)(thm) :=
   eapply' thm fst_Case_tac.
 
+
+
+
+(* constructor' does not come with the tactic version, because it does
+   not parse. I really don't understand what is going on with this
+   integer thing *)
+
+Tactic Notation "constructor'":=
+  let name_of_case := fresh "NAMEOFCASE" in
+  (constructor_aux resin name_of_case);
+  put_in_case name_of_case fst_Case_tac.
+
+Tactic Notation "constructor'" integer(n) :=
+  let name_of_case := fresh "NAMEOFCASE" in
+  (constructor_aux n resin name_of_case);
+  put_in_case name_of_case fst_Case_tac.

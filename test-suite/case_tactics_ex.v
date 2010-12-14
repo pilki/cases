@@ -222,6 +222,7 @@ Proof.
   assumption.
 Qed.
 
+
 (*
 (* it also works with bindings *)
 Lemma useless: forall (n:nat) (EQ:n = n) (TRUE:True), True. auto. Qed.
@@ -229,3 +230,19 @@ Lemma useless: forall (n:nat) (EQ:n = n) (TRUE:True), True. auto. Qed.
 Goal True.
   apply' useless with 0.
 *)
+
+
+Inductive foo :Prop :=
+| foo1 : forall (F:False), foo
+| foo2 : forall (T:True /\ True), foo.
+Goal foo.
+  constructor' 2.
+  Case "T".
+  constructor'.
+  NSCase "Left".
+    constructor.
+  NSCase "Right".
+    constructor.
+Qed.
+
+

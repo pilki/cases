@@ -147,3 +147,13 @@ Tactic Notation "eapply'" constr(thm) :=
 
 Tactic Notation "string" "of" constr(c) "in" ident(id) :=
   pose (id := "").
+
+(* constructor' does not come with the tactic version, because it does
+   not parse. I really don't understand what is going on with this
+   integer thing *)
+
+Tactic Notation "constructor'":=
+  constructor.
+
+Tactic Notation "constructor'" integer(n) :=
+  constructor n.

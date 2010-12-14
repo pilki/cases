@@ -211,7 +211,7 @@ let hyp_name_of =
 
 let rec list_of_no_dep_names limit exclude_num x =
   let rec build n nth_non_dep c =
-    if n = 0 then [] else 
+    if n = 0 then [] else
     match kind_of_term c with
     | Prod(na, _, t2) ->
         let dep = dependent (mkRel 1) t2 in
@@ -219,9 +219,11 @@ let rec list_of_no_dep_names limit exclude_num x =
            rest is not dependent on it *)
         if dep then build (pred n) nth_non_dep t2 else
         let hyp_name = hyp_name_of na in
-        (* TODO: add checks with exclude *)
         let tail = build (pred n) (succ nth_non_dep) t2 in
+        (* if the dependent hypothesis is explicitly bound, no subgoal
+           will be created for it *)
         if List.mem nth_non_dep exclude_num then tail else hyp_name :: tail
+
     | LetIn(_,a,_,t) -> build n nth_non_dep (subst1 a t)
     | Cast(t,_,_) -> build n nth_non_dep t
     | _ -> []
@@ -229,8 +231,13 @@ let rec list_of_no_dep_names limit exclude_num x =
 
 open Rawterm
 
-let build_apply' app thm_wb id gl =
-  let thm,bl = sig_it thm_wb in
+let select_app_tac with_evars =
+  if with_evars then Tactics.eapply_with_bindings else Tactics.apply_with_bindings
+
+
+let build_apply' with_evars thm bl id gl =
+  (* get the list of numbers of non dep hypothesis that are explicitly
+     bound *)
   let rec mkexcludes = function
     | [] -> []
     | (_, AnonHyp n, _) :: l -> n :: mkexcludes l
@@ -238,21 +245,122 @@ let build_apply' app thm_wb id gl =
   let exclude_num =
     match bl with
     | NoBindings
-    | ImplicitBindings _ -> []
+    | ImplicitBindings _ -> [] (* implicit bindings only concerns dep hypothesis *)
     | ExplicitBindings ebs -> mkexcludes ebs in
+
   let concl_nprod = nb_prod (pf_concl gl) in
   let thm_ty = Reductionops.nf_betaiota (project gl) (pf_type_of gl thm) in
   let t_nprod = nb_prod thm_ty in
   let n = t_nprod - concl_nprod in
   let lst_name = list_of_no_dep_names n exclude_num thm_ty in
-  tclTHENS (app (sig_it thm_wb)) (List.map (fun s -> letin_string id s) lst_name) gl
+  tclTHENS ((select_app_tac with_evars) (thm, bl)) (List.map (fun s -> letin_string id s) lst_name) gl
 
 TACTIC EXTEND apply_aux
-| ["apply_aux" constr_with_bindings(c) "resin" ident(id) ] -> 
-    [ build_apply' Tactics.apply_with_bindings c id]
+| ["apply_aux" constr_with_bindings(c) "resin" ident(id) ] ->
+    [ let thm,bl = sig_it c in build_apply' false thm bl id]
 END
 
 TACTIC EXTEND eapply_aux
-| ["eapply_aux" constr_with_bindings(c) "resin" ident(id) ] -> 
-    [ build_apply' Tactics.eapply_with_bindings c id]
+| ["eapply_aux" constr_with_bindings(c) "resin" ident(id) ] ->
+    [ let thm,bl = sig_it c in  build_apply' true thm bl id]
 END
+
+
+
+let mk_constructor with_evars optnum id gl =
+  let cl = pf_concl gl in
+  let (mind,redcl) = pf_reduce_to_quantified_ind gl cl in
+  let nconstr =
+    Array.length (snd (Global.lookup_inductive mind)).Declarations.mind_consnames in
+  (* list of numbers of constructors we want to try to apply *)
+  let ln =
+    match optnum with
+    | None -> interval 1 nconstr
+    | Some n ->
+        if n <= 0 then error "The constructors are numbered starting from 1."
+        else if n > nconstr then error "Not enough constructors."
+        else
+          [n] in
+  let all_apply_tacs =
+    tclFIRST (List.map (fun i ->
+      build_apply'
+        with_evars (mkConstruct (ith_constructor_of_inductive mind i))
+        NoBindings id) ln) in
+  (tclTHENLIST
+     [convert_concl_no_check redcl DEFAULTcast; Tactics.intros; all_apply_tacs]) gl
+
+
+
+(* for a reason I ignore, I can't have integer(..), I need to use
+    int_or_var(...). I've no idea why *)
+
+let ioa_to_int = function
+  | ArgArg i -> i
+  | _ -> error "You must pass an integer"
+
+TACTIC EXTEND constructor_aux
+| ["constructor_aux" int_or_var(n) "resin" ident(id) ] ->
+    [ mk_constructor false (Some (ioa_to_int n)) id ]
+| ["constructor_aux" "resin" ident(id) ] ->
+    [ mk_constructor false None id]
+END
+
+TACTIC EXTEND econstructor_aux
+| ["econstructor_aux" integer_opt(on) "resin" ident(id) ] ->
+    [ mk_constructor true on id]
+END
+
+
+
+(*
+
+
+  check_number_of_constructors expctdnumopt i nconstr;
+  let cons = mkConstruct (ith_constructor_of_inductive mind i) in
+  let apply_tac = general_apply true false with_evars (dloc,(cons,lbind)) in
+  (tclTHENLIST
+     [convert_concl_no_check redcl DEFAULTcast; intros; apply_tac]) gl
+
+
+
+
+
+let check_number_of_constructors expctdnumopt i nconstr =
+  if i=0 then error "The constructors are numbered starting from 1.";
+  begin match expctdnumopt with
+    | Some n when n <> nconstr ->
+	error ("Not an inductive goal with "^
+	       string_of_int n^plural n " constructor"^".")
+    | _ -> ()
+  end;
+  if i > nconstr then error "Not enough constructors."
+
+let constructor_tac with_evars expctdnumopt i lbind gl =
+  let cl = pf_concl gl in
+  let (mind,redcl) = pf_reduce_to_quantified_ind gl cl in
+  let nconstr =
+    Array.length (snd (Global.lookup_inductive mind)).mind_consnames in
+  check_number_of_constructors expctdnumopt i nconstr;
+  let cons = mkConstruct (ith_constructor_of_inductive mind i) in
+  let apply_tac = general_apply true false with_evars (dloc,(cons,lbind)) in
+  (tclTHENLIST
+     [convert_concl_no_check redcl DEFAULTcast; intros; apply_tac]) gl
+
+let one_constructor i lbind = constructor_tac false None i lbind
+
+(* Try to apply the constructor of the inductive definition followed by
+   a tactic t given as an argument.
+   Should be generalize in Constructor (Fun c : I -> tactic)
+ *)
+
+let any_constructor with_evars tacopt gl =
+  let t = match tacopt with None -> tclIDTAC | Some t -> t in
+  let mind = fst (pf_reduce_to_quantified_ind gl (pf_concl gl)) in
+  let nconstr =
+    Array.length (snd (Global.lookup_inductive mind)).mind_consnames in
+  if nconstr = 0 then error "The type has no constructors.";
+  tclFIRST
+    (List.map
+      (fun i -> tclTHEN (constructor_tac with_evars None i NoBindings) t)
+      (interval 1 nconstr)) gl
+ *)
