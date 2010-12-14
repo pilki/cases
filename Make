@@ -9,4 +9,5 @@ CAMLP4OPTIONS = "-loc loc"
 src/case_tactics.ml
 src/case_tactics_plugin_mod.ml
 theories/Case_Tactics.v
+theories/NoCase_Tactics.v
 test-suite/case_tactics_ex.v

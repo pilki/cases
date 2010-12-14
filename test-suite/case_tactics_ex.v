@@ -11,9 +11,10 @@
 
 (* this small example suppose that you have included insert-cases.el
    in your .emacs. If you have not, you can of course run the file,
-   but reproducing it might be a bit painful ! qsdf *)
+   but reproducing it might be a bit painful ! *)
 
-
+Add Rec LoadPath "../theories" as Case_Tactics.
+Add ML Path "../src".
 Require Import Case_Tactics.
 
 (* the (S* )Case tactics, by Aaron Bohannon
