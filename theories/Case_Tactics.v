@@ -192,3 +192,22 @@ Tactic Notation "constructor'" integer(n) :=
   let name_of_case := fresh "NAMEOFCASE" in
   (constructor_aux n resin name_of_case);
   put_in_case name_of_case fst_Case_tac.
+
+
+
+
+
+Notation "H : T1 → T2" := (forall (H:T1), T2) (at level 100, only parsing, right associativity).
+
+Goal (n : nat →  T : True → (n = n)).
+intros.
+auto.
+Qed.
+
+Definition foo {A} (a:A) := a.
+Notation "H : T1 --> T2" := (forall (H:T1), T2) (at level 100, only parsing, right associativity).
+
+Goal (n : foo nat -->  T : foo True --> n = n).
+intros.
+auto.
+Qed.
