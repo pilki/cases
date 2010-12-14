@@ -221,3 +221,11 @@ Proof.
   NSCase "mEQp".
   assumption.
 Qed.
+
+(*
+(* it also works with bindings *)
+Lemma useless: forall (n:nat) (EQ:n = n) (TRUE:True), True. auto. Qed.
+
+Goal True.
+  apply' useless with 0.
+*)

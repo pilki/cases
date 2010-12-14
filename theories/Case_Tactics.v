@@ -160,19 +160,19 @@ Tactic Notation "destruct'" ident(id)
   cases id (destruct id as pat _eqn) as pat.
 
 
-Tactic Notation "apply'" constr(thm) tactic(c) :=
+Tactic Notation "apply'" constr(*_with_bindings*)(thm) tactic(c) :=
   let name_of_case := fresh "NAMEOFCASE" in
   (apply_aux thm resin name_of_case);
   put_in_case name_of_case c.
 
-Tactic Notation "apply'" constr(thm) :=
+Tactic Notation "apply'" constr(*_with_bindings*)(thm) :=
   apply' thm fst_Case_tac.
 
-Tactic Notation "eapply'" constr(thm) tactic(c):=
+Tactic Notation "eapply'" constr(*_with_bindings*)(thm) tactic(c):=
   let name_of_case := fresh "NAMEOFCASE" in
   (eapply_aux thm resin name_of_case);
   put_in_case name_of_case c.
 
-Tactic Notation "eapply'" constr(thm) :=
+Tactic Notation "eapply'" constr(*_with_bindings*)(thm) :=
   eapply' thm fst_Case_tac.
 
