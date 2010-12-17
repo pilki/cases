@@ -223,13 +223,20 @@ Proof.
 Qed.
 
 
-(*
+
 (* it also works with bindings *)
 Lemma useless: forall (n:nat) (EQ:n = n) (TRUE:True), True. auto. Qed.
 
 Goal True.
   apply' useless with 0.
-*)
+  Case "EQ".
+  reflexivity.
+  Case "TRUE".
+  apply' useless with (n := 0) (1 := eq_refl 0).
+  Case "TRUE"; SCase "EQ".
+  constructor.
+Qed.
+
 
 
 Inductive foo :Prop :=

@@ -88,6 +88,9 @@ Ltac fst_Case_tac s :=
     | fst_Case_aux SSSSSSCase (SSSSSSCase) s
     | fst_Case_aux SSSSSSSCase (SSSSSSSCase) s].
 
+Register First Case fst_Case_tac.
+
+
 (* [cases ty tac c] runs the tactic tac and produces the cases of
    inductive ty with tactic c. If ty is not an inductive but has an
    inductive type, its type is used *)
@@ -160,7 +163,7 @@ Tactic Notation "destruct'" ident(id)
   cases id (destruct id as pat _eqn) as pat.
 
 
-Tactic Notation "apply'" constr(*_with_bindings*)(thm) tactic(c) :=
+(*Tactic Notation "apply'" constr(*_with_bindings*)(thm) tactic(c) :=
   let name_of_case := fresh "NAMEOFCASE" in
   (apply_aux thm resin name_of_case);
   put_in_case name_of_case c.
@@ -175,14 +178,14 @@ Tactic Notation "eapply'" constr(*_with_bindings*)(thm) tactic(c):=
 
 Tactic Notation "eapply'" constr(*_with_bindings*)(thm) :=
   eapply' thm fst_Case_tac.
-
+*)
 
 
 
 (* constructor' does not come with the tactic version, because it does
    not parse. I really don't understand what is going on with this
    integer thing *)
-
+(*
 Tactic Notation "constructor'":=
   let name_of_case := fresh "NAMEOFCASE" in
   (constructor_aux resin name_of_case);
@@ -192,7 +195,7 @@ Tactic Notation "constructor'" integer(n) :=
   let name_of_case := fresh "NAMEOFCASE" in
   (constructor_aux n resin name_of_case);
   put_in_case name_of_case fst_Case_tac.
-
+*)
 
 
 

@@ -84,6 +84,20 @@ open Tacinterp
 open Genarg
 open Util
 
+
+(* build a continuation tactic from tactic expression (I
+   think... Taken from the quote plugin )*)
+(*let make_cont k x =
+  let k = TacDynamic(dummy_loc, Tacinterp.tactic_in (fun _ -> fst k)) in
+  let x = TacDynamic(dummy_loc, Pretyping.constr_in x) in
+  let tac = <:tactic<let cont := $k in cont $x>> in
+  Tacinterp.interp tac*)
+let make_cont k x =
+  let k = TacDynamic(dummy_loc, Tacinterp.tactic_in (fun _ -> k)) in
+  let x = TacDynamic(dummy_loc, Pretyping.constr_in x) in
+  let tac = <:tactic<let cont := $k in cont $x>> in
+  Tacinterp.interp tac
+
 (* A clause specifying that the [let] should not try to fold anything the goal
    matching the list of constructors (see [letin_tac] below). *)
 
@@ -230,12 +244,46 @@ let rec list_of_no_dep_names limit exclude_num x =
   in build limit 0 x
 
 open Rawterm
+open Libobject
+open Summary
+
+(* this might be a bit ugly... It's a reference on the tactic that
+   select the next case tactic *)
+let fst_case_ref = ref None
+let fst_case () =
+  match !fst_case_ref with
+  | None -> None
+  | Some t -> Some (make_cont (glob_tactic t))
+
+let (fst_case_obj,_) =
+  declare_object
+    {(default_object "Firt Case") with
+       cache_function = (fun (_,fc) -> fst_case_ref := fc);
+       load_function = (fun _ (_,fc) -> fst_case_ref := fc)}
+
+let _ = declare_summary "Firt Case"
+	  { freeze_function = (fun () -> !fst_case_ref);
+	    unfreeze_function = ((:=) fst_case_ref);
+	    init_function = (fun () -> fst_case_ref := None) }
+
+let declare_fst_case t =
+  if fst_case () = None then
+    Lib.add_anonymous_leaf (fst_case_obj (Some t))
+  else
+    error "The tactic has already been registered. You cannot change it."
+
+
+VERNAC COMMAND EXTEND RegisterFstCase
+  [ "Register" "First" "Case" tactic(t) ] ->
+    [declare_fst_case t
+    ]
+END
 
 let select_app_tac with_evars =
   if with_evars then Tactics.eapply_with_bindings else Tactics.apply_with_bindings
 
 
-let build_apply' with_evars thm bl id gl =
+let build_apply' with_evars thm bl ok gl =
   (* get the list of numbers of non dep hypothesis that are explicitly
      bound *)
   let rec mkexcludes = function
@@ -253,21 +301,33 @@ let build_apply' with_evars thm bl id gl =
   let t_nprod = nb_prod thm_ty in
   let n = t_nprod - concl_nprod in
   let lst_name = list_of_no_dep_names n exclude_num thm_ty in
-  tclTHENS ((select_app_tac with_evars) (thm, bl)) (List.map (fun s -> letin_string id s) lst_name) gl
+  let cont =
+    match ok with
+    | None ->
+        (match fst_case () with
+        | None -> error "The first case tactic has not been registered"
+        | Some c -> c)
+    | Some k -> make_cont k in
+  tclTHENS ((select_app_tac with_evars) (thm, bl)) (List.map (fun s -> cont s) lst_name) gl
 
 TACTIC EXTEND apply_aux
-| ["apply_aux" constr_with_bindings(c) "resin" ident(id) ] ->
-    [ let thm,bl = sig_it c in build_apply' false thm bl id]
+| ["apply'" constr_with_bindings(c) tactic_opt(ok) ] ->
+    [ let thm,bl = sig_it c in build_apply' false thm bl ok]
+END
+TACTIC EXTEND eapply_aux
+| ["eapply'" constr_with_bindings(c) tactic_opt(ok) ] ->
+    [ let thm,bl = sig_it c in build_apply' true thm bl ok]
 END
 
+(*
 TACTIC EXTEND eapply_aux
-| ["eapply_aux" constr_with_bindings(c) "resin" ident(id) ] ->
+| ["eapply'" constr_with_bindings(c) "resin" ident(id) ] ->
     [ let thm,bl = sig_it c in  build_apply' true thm bl id]
 END
+*)
 
 
-
-let mk_constructor with_evars optnum id gl =
+let mk_constructor with_evars optnum ok gl =
   let cl = pf_concl gl in
   let (mind,redcl) = pf_reduce_to_quantified_ind gl cl in
   let nconstr =
@@ -285,7 +345,7 @@ let mk_constructor with_evars optnum id gl =
     tclFIRST (List.map (fun i ->
       build_apply'
         with_evars (mkConstruct (ith_constructor_of_inductive mind i))
-        NoBindings id) ln) in
+        NoBindings ok) ln) in
   (tclTHENLIST
      [convert_concl_no_check redcl DEFAULTcast; Tactics.intros; all_apply_tacs]) gl
 
@@ -299,68 +359,17 @@ let ioa_to_int = function
   | _ -> error "You must pass an integer"
 
 TACTIC EXTEND constructor_aux
-| ["constructor_aux" int_or_var(n) "resin" ident(id) ] ->
-    [ mk_constructor false (Some (ioa_to_int n)) id ]
-| ["constructor_aux" "resin" ident(id) ] ->
-    [ mk_constructor false None id]
+| ["constructor'" int_or_var(n) tactic_opt(ok) ] ->
+    [ mk_constructor false (Some (ioa_to_int n)) ok ]
+| ["constructor'" tactic_opt(ok) ] ->
+    [ mk_constructor false None ok]
 END
-
-TACTIC EXTEND econstructor_aux
-| ["econstructor_aux" integer_opt(on) "resin" ident(id) ] ->
-    [ mk_constructor true on id]
-END
-
-
-
 (*
+TACTIC EXTEND econstructor_aux
+| ["econstructor_aux" int_or_var(n) "resin" ident(id) ] ->
+    [ mk_constructor true (Some (ioa_to_int n)) id ]
+| ["econstructor_aux" "resin" ident(id) ] ->
+    [ mk_constructor true None id]
+END
 
-
-  check_number_of_constructors expctdnumopt i nconstr;
-  let cons = mkConstruct (ith_constructor_of_inductive mind i) in
-  let apply_tac = general_apply true false with_evars (dloc,(cons,lbind)) in
-  (tclTHENLIST
-     [convert_concl_no_check redcl DEFAULTcast; intros; apply_tac]) gl
-
-
-
-
-
-let check_number_of_constructors expctdnumopt i nconstr =
-  if i=0 then error "The constructors are numbered starting from 1.";
-  begin match expctdnumopt with
-    | Some n when n <> nconstr ->
-	error ("Not an inductive goal with "^
-	       string_of_int n^plural n " constructor"^".")
-    | _ -> ()
-  end;
-  if i > nconstr then error "Not enough constructors."
-
-let constructor_tac with_evars expctdnumopt i lbind gl =
-  let cl = pf_concl gl in
-  let (mind,redcl) = pf_reduce_to_quantified_ind gl cl in
-  let nconstr =
-    Array.length (snd (Global.lookup_inductive mind)).mind_consnames in
-  check_number_of_constructors expctdnumopt i nconstr;
-  let cons = mkConstruct (ith_constructor_of_inductive mind i) in
-  let apply_tac = general_apply true false with_evars (dloc,(cons,lbind)) in
-  (tclTHENLIST
-     [convert_concl_no_check redcl DEFAULTcast; intros; apply_tac]) gl
-
-let one_constructor i lbind = constructor_tac false None i lbind
-
-(* Try to apply the constructor of the inductive definition followed by
-   a tactic t given as an argument.
-   Should be generalize in Constructor (Fun c : I -> tactic)
- *)
-
-let any_constructor with_evars tacopt gl =
-  let t = match tacopt with None -> tclIDTAC | Some t -> t in
-  let mind = fst (pf_reduce_to_quantified_ind gl (pf_concl gl)) in
-  let nconstr =
-    Array.length (snd (Global.lookup_inductive mind)).mind_consnames in
-  if nconstr = 0 then error "The type has no constructors.";
-  tclFIRST
-    (List.map
-      (fun i -> tclTHEN (constructor_tac with_evars None i NoBindings) t)
-      (interval 1 nconstr)) gl
- *)
+*)
