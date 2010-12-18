@@ -209,43 +209,16 @@ TACTIC EXTEND run_tac_on_ind
     ]
 END
 
-
-
-
-(* build the coqstring from the hypothesis *)
-let hyp_name_of =
-  let no_name = lazy (coqstring_of_string "NONAMEGOAL") in
-  function
-    | Anonymous -> !!no_name
-    | Name id -> coqstring_of_string (string_of_id id)
-
-
-(* build the list of names of hypothesis that will become sub goals,
-   among the n first hypothesis of the type*)
-
-let rec list_of_no_dep_names limit exclude_num x =
-  let rec build n nth_non_dep c =
-    if n = 0 then [] else
-    match kind_of_term c with
-    | Prod(na, _, t2) ->
-        let dep = dependent (mkRel 1) t2 in
-        (* I *think* that an argument becomes a subgoal when it the
-           rest is not dependent on it *)
-        if dep then build (pred n) nth_non_dep t2 else
-        let hyp_name = hyp_name_of na in
-        let tail = build (pred n) (succ nth_non_dep) t2 in
-        (* if the dependent hypothesis is explicitly bound, no subgoal
-           will be created for it *)
-        if List.mem nth_non_dep exclude_num then tail else hyp_name :: tail
-
-    | LetIn(_,a,_,t) -> build n nth_non_dep (subst1 a t)
-    | Cast(t,_,_) -> build n nth_non_dep t
-    | _ -> []
-  in build limit 0 x
-
 open Rawterm
 open Libobject
 open Summary
+
+(* we want to register the "fst_case_tac" tactics, that selects which
+   S*Case tactic is applied next. For that, we store it in a
+   reference. We need to use de declare_object and declare_summary
+   methods, so it is stored in the .vo files, and it works well with
+   interactive development *)
+
 
 (* this might be a bit ugly... It's a reference on the tactic that
    select the next case tactic *)
@@ -272,35 +245,85 @@ let declare_fst_case t =
   else
     error "The tactic has already been registered. You cannot change it."
 
+(* Vernacular command that registers de "fstcase" tactic. To be used
+   at most once *)
 
 VERNAC COMMAND EXTEND RegisterFstCase
   [ "Register" "First" "Case" tactic(t) ] ->
-    [declare_fst_case t
-    ]
+    [declare_fst_case t]
 END
 
+
+(* we now move to the (e)apply' tactics *)
+
+(* which apply tactic should be used *)
 let select_app_tac with_evars =
-  if with_evars then Tactics.eapply_with_bindings else Tactics.apply_with_bindings
+  if with_evars then
+    Tactics.eapply_with_bindings
+  else
+    Tactics.apply_with_bindings
+
+
+(* build the coqstring from the hypothesis *)
+let hyp_name_of =
+  let no_name = lazy (coqstring_of_string "NONAMEGOAL") in
+  function
+    | Anonymous -> !!no_name
+    | Name id -> coqstring_of_string (string_of_id id)
+
+
+(* build the list of names of hypothesis that will become sub goals,
+   among the n first hypothesis of the type*)
+
+let rec list_of_no_dep_names concl_nprod exclude_num thmy =
+  let rec build n nth_non_dep c =
+    if n = 0 then [] else
+    match kind_of_term c with
+    | Prod(na, _, t2) ->
+        let dep = dependent (mkRel 1) t2 in
+        (* I *think* that an argument becomes a subgoal when it the
+           rest is not dependent on it *)
+        if dep then build (pred n) nth_non_dep t2 else
+        let hyp_name = hyp_name_of na in
+        let tail = build (pred n) (succ nth_non_dep) t2 in
+
+        (* if the dependent hypothesis is explicitly bound, no subgoal
+           will be created for it *)
+        if List.mem nth_non_dep exclude_num then
+          tail
+        else
+          hyp_name :: tail
+
+    | LetIn(_,a,_,t) -> build n nth_non_dep (subst1 a t)
+    | Cast(t,_,_) -> build n nth_non_dep t
+    | _ -> []
+  in
+  let limit = nb_prod thmy - concl_nprod in
+  if limit <= 0 then None else Some (build limit 0 thmy)
+
 
 
 let build_apply' with_evars thm bl ok gl =
   (* get the list of numbers of non dep hypothesis that are explicitly
-     bound *)
+     bound from the complete binding list*)
   let rec mkexcludes = function
     | [] -> []
     | (_, AnonHyp n, _) :: l -> n :: mkexcludes l
     | _ :: l -> mkexcludes l in
+
+  (* call the previous function only on explicit bindings
+     (with (x := ..) ..) and not on implicit ones (with v1 v2 ...) *)
+
   let exclude_num =
     match bl with
     | NoBindings
     | ImplicitBindings _ -> [] (* implicit bindings only concerns dep hypothesis *)
     | ExplicitBindings ebs -> mkexcludes ebs in
 
+
   let concl_nprod = nb_prod (pf_concl gl) in
   let thm_ty = Reductionops.nf_betaiota (project gl) (pf_type_of gl thm) in
-  let t_nprod = nb_prod thm_ty in
-  let n = t_nprod - concl_nprod in
-  let lst_name = list_of_no_dep_names n exclude_num thm_ty in
+  (* to which tactic the tag of the sub-goals are passed *)
   let cont =
     match ok with
     | None ->
@@ -308,23 +331,43 @@ let build_apply' with_evars thm bl ok gl =
         | None -> error "The first case tactic has not been registered"
         | Some c -> c)
     | Some k -> make_cont k in
-  tclTHENS ((select_app_tac with_evars) (thm, bl)) (List.map (fun s -> cont s) lst_name) gl
+  (* specialized version of list_of_no_dep_names *)
+  let build_lst_name = list_of_no_dep_names concl_nprod exclude_num in
+  
+  (* reduce as much as possible a term *)
+  let rec real_red thm =
+    try
+      let red_thm = Tacred.try_red_product (pf_env gl) (project gl) thm_ty in
+      real_red red_thm
+    with
+      Tacred.Redelimination -> thm in
+  let red_thm = real_red thm_ty in
+  let array_name = 
+    match (build_lst_name red_thm) with
+    | None -> [||]
+    | Some l -> Array.of_list l in
+  tclTHEN_i 
+    ((select_app_tac with_evars) (thm, bl)) 
+    (fun i ->
+      if i <= 0 then error "A negative sub goal??"
+      else if i > Array.length array_name then
+        error ("Not enough tags for subgoals. If the apply"^
+        " tactic did not do second order unification, "^
+        "then this is a bug")
+      else
+        cont (array_name.(i - 1))) gl
 
-TACTIC EXTEND apply_aux
+
+TACTIC EXTEND apply'
 | ["apply'" constr_with_bindings(c) tactic_opt(ok) ] ->
     [ let thm,bl = sig_it c in build_apply' false thm bl ok]
 END
-TACTIC EXTEND eapply_aux
+TACTIC EXTEND eapply'
 | ["eapply'" constr_with_bindings(c) tactic_opt(ok) ] ->
     [ let thm,bl = sig_it c in build_apply' true thm bl ok]
 END
 
-(*
-TACTIC EXTEND eapply_aux
-| ["eapply'" constr_with_bindings(c) "resin" ident(id) ] ->
-    [ let thm,bl = sig_it c in  build_apply' true thm bl id]
-END
-*)
+
 
 
 let mk_constructor with_evars optnum ok gl =
@@ -351,19 +394,27 @@ let mk_constructor with_evars optnum ok gl =
 
 
 
-(* for a reason I ignore, I can't have integer(..), I need to use
-    int_or_var(...). I've no idea why *)
+(* we can't use directly integer, because it expects a direct integer
+   constant. So we use int_or_var. But we want the var to have been
+   substituted, so we fail it has not been *)
 
 let ioa_to_int = function
   | ArgArg i -> i
   | _ -> error "You must pass an integer"
 
-TACTIC EXTEND constructor_aux
+TACTIC EXTEND constructor'
 | ["constructor'" int_or_var(n) tactic_opt(ok) ] ->
     [ mk_constructor false (Some (ioa_to_int n)) ok ]
 | ["constructor'" tactic_opt(ok) ] ->
     [ mk_constructor false None ok]
 END
+TACTIC EXTEND econstructor'
+| ["econstructor'" int_or_var(n) tactic_opt(ok) ] ->
+    [ mk_constructor true (Some (ioa_to_int n)) ok ]
+| ["eonstructor'" tactic_opt(ok) ] ->
+    [ mk_constructor true None ok]
+END
+
 (*
 TACTIC EXTEND econstructor_aux
 | ["econstructor_aux" int_or_var(n) "resin" ident(id) ] ->
