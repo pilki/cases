@@ -224,16 +224,21 @@ Qed.
 
 
 
-(* it also works with bindings *)
-Lemma useless: forall (n:nat) (EQ:n = n) (TRUE:True), True. auto. Qed.
+(* it also works with bindings and when lemma needs to be reducesed *)
 
-Goal True.
+Definition true_imp_true:= forall (TRUE_in:True), True.
+Lemma useless: forall (n:nat) (EQ:n = n) (TRUE_out:True), true_imp_true.
+Proof. red. auto. Qed.
+
+Goal true_imp_true.
   apply' useless with 0.
   Case "EQ".
   reflexivity.
-  Case "TRUE".
+  Case "TRUE_out".
   apply' useless with (n := 0) (1 := eq_refl 0).
-  Case "TRUE"; SCase "EQ".
+  Case "TRUE_out"; SCase "EQ". 
+  constructor.
+  Case "TRUE_out"; SCase "TRUE_in".
   constructor.
 Qed.
 
