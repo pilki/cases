@@ -2,8 +2,12 @@
  "Insert the proper Case tactic at cursor position."
  (interactive)
  (let (names tmpname spoint cont)
-  (setq names '("SSSSSSCase" "SSSSSCase"
-                "SSSSCase" "SSSCase" "SSCase"
+  (setq names '("S11Case" "S10Case" "S9Case" "S8Case" 
+                "S7Case" "SSSSSSSCase" 
+                "S6Case" "SSSSSSCase"
+                "S5Case" "SSSSSCase"
+                "S4Case" "SSSSCase"
+                "S3Case" "SSSCase" "SSCase"
                 "SCase" "Case"))
   (setq cont nil)
   (with-current-buffer "*goals*"
@@ -34,8 +38,10 @@
  (interactive)
  (let (names tmpname spoint cont)
   (setq names '("Case" "SCase"
-                "SSCase" "SSSCase" "SSSSCase"
-                "SSSSSCase" "SSSSSSCase"))
+                "SSCase" "S3Case" "SSSCase" "S4Case" "SSSSCase"
+                "S5Case" "SSSSSCase" "S6Case" "SSSSSSCase"
+                "S7Case" "SSSSSSSCase"
+                "S8Case" "S9Case" "S10Case" "S11Case" ))
   (setq cont nil)
   (with-current-buffer "*goals*"
     (while names
@@ -58,7 +64,7 @@
         )
       )
     )
-  (if cont (insert (concat cont "."))))
+  (if cont (insert (concat cont ". "))))
 )
 
 (global-set-key (kbd "C-c C-a C-q") 'insert-all-cases)
