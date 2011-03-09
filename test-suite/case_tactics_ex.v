@@ -257,4 +257,3 @@ Goal foo.
     constructor.
 Qed.
 
-
