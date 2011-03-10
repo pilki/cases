@@ -104,7 +104,6 @@ Qed.
 
 Goal forall n, n = n + 0.
 Proof.
-  intros n.
   (* don't miss the ' at the end of induction' *)
   induction' n; simpl.
 

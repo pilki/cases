@@ -161,26 +161,26 @@ Tactic Notation "cases" constr(ind) tactic(ftac)
      "as" simple_intropattern(pat) :=
   cases ind ftac as pat fst_Case_tac.
 
-Tactic Notation "ointros_id" ident(id) :=
-  first [exists_hyp id | intros until id].
+(*Ltac ointros id :=
+  first [exists_hyp id | intros until id | idtac].*)
 
-Tactic Notation "ointros" constr(id) :=
-  try (ointros_id id).
+Tactic Notation "ointros" constr(id) :=  idtac.
+Tactic Notation "ointros" ident(id) :=
+  first [exists_hyp id | intros until id|idtac].
 
-
-Tactic Notation "induction'" constr(id) tactic(c) :=
+Tactic Notation "induction'" ident(id) tactic(c):=
   ointros id;
   cases id (induction id) c.
-Tactic Notation "induction'" constr(id):=
+Tactic Notation "induction'" ident(id):=
   ointros id;
   cases id (induction id).
 
 
-Tactic Notation "induction'" constr(id)
+Tactic Notation "induction'" ident(id)
      "as" simple_intropattern(pat) tactic(c) :=
   ointros id;
   cases id (induction id as pat) as pat c.
-Tactic Notation "induction'" constr(id)
+Tactic Notation "induction'" ident(id)
      "as" simple_intropattern(pat):=
   ointros id;
   cases id (induction id as pat) as pat.
@@ -190,24 +190,57 @@ Tactic Notation "destruct'" constr(id) tactic(c) :=
   ointros id;
   cases id (destruct id) c.
 Tactic Notation "destruct'" constr(id):=
+  cases id (destruct id).
+Tactic Notation "destruct'" ident(id):=
   ointros id;
   cases id (destruct id).
 
 Tactic Notation "destruct'" constr(id)
      "as" simple_intropattern(pat) tactic(c) :=
+  cases id (destruct id as pat) as pat c.
+Tactic Notation "destruct'" ident(id)
+     "as" simple_intropattern(pat) tactic(c) :=
   ointros id;
   cases id (destruct id as pat) as pat c.
+
 Tactic Notation "destruct'" constr(id)
+     "as" simple_intropattern(pat):=
+  cases id (destruct id as pat) as pat.
+Tactic Notation "destruct'" ident(id)
      "as" simple_intropattern(pat):=
   ointros id;
   cases id (destruct id as pat) as pat.
 
 Tactic Notation "destruct'" constr(id)
      "as" simple_intropattern(pat) "_eqn" tactic(c) :=
+  cases id (destruct id as pat _eqn) as pat c.
+Tactic Notation "destruct'" ident(id)
+     "as" simple_intropattern(pat) "_eqn" tactic(c) :=
   ointros id;
   cases id (destruct id as pat _eqn) as pat c.
+
 Tactic Notation "destruct'" constr(id)
+     "as" simple_intropattern(pat) "_eqn":=
+  cases id (destruct id as pat _eqn) as pat.
+Tactic Notation "destruct'" ident(id)
      "as" simple_intropattern(pat) "_eqn":=
   ointros id;
   cases id (destruct id as pat _eqn) as pat.
 
+(* verification *)
+
+Goal forall n, n >0 -> True.
+induction' n; auto.
+Qed.
+
+Goal forall n, n >0 -> True.
+intros. induction' n; auto.
+Qed.
+
+Goal forall n, n > 0 -> True.
+  destruct' n; auto.
+Qed.
+
+Goal forall n, n > 0 -> True.
+  destruct' 12; auto.
+Qed.
