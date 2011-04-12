@@ -304,7 +304,6 @@ let rec list_of_no_dep_names concl_nprod exclude_num thmy =
 
 
 let build_apply' with_evars thm bl ok gl =
-  msg (str "test");
   (* get the list of numbers of non dep hypothesis that are explicitly
      bound from the complete binding list*)
   let rec mkexcludes = function
@@ -342,9 +341,7 @@ let build_apply' with_evars thm bl ok gl =
       real_red red_thm
     with
       Tacred.Redelimination -> thm in
-  msg (str "Start real_red");
   let red_thm = real_red thm_ty in
-  msg (str "End real_red");
   let array_name = 
     match (build_lst_name red_thm) with
     | None -> [||]
