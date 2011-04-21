@@ -34,7 +34,8 @@ Then simply do:
 
 # coq_makefile -f Make -o Makefile
 
-To generate a makefile from the description in Make, then [make].
+To generate a makefile from the description in Make, then
+# make
 This will consecutively build the plugin, the supporting 
 theories and the test-suite file.
 
@@ -44,3 +45,7 @@ simply add the following to ~/.coqrc:
 
 Add Rec LoadPath "path_to_case_tactics/theories" as Case_Tactics.
 Add ML Path "path_to_case_tactics/src".
+
+To use it in a development, add those options to coqc
+
+-I path_to_case_tactics/src -R path_to_case_tactics/theories Case_Tactics
