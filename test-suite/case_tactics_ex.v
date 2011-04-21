@@ -108,7 +108,7 @@ Proof.
   induction' n; simpl.
 
   (* Notice this is already in the goal *)
-  Case "0".
+  Case "O".
   reflexivity.
 
   (* and this too *)
@@ -141,13 +141,13 @@ Qed.
    H" tactic. It builds a coq string from any term, and put it in
    H. Lets see how this can be useful *)
 
+
 Lemma nat_eq_dec : forall (n m: nat), {n = m} + {n <> m}.
 Proof.
   decide equality.
 Qed.
 
 Notation "x == y" := (nat_eq_dec x y) (at level 70, no associativity).
-
 
 Tactic Notation "dest" constr(a) "==" constr(b) :=
   (* the tactic cannot just return the string, it has to be stored in
@@ -169,8 +169,24 @@ Tactic Notation "dest" "==" :=
       dest a == b
   end.
 
-Goal forall foo bar baz, 
-  (if foo == bar then 
+Goal forall foo,
+  (if foo == 42 then
+     False
+   else
+     False
+  ) -> False.
+Proof.
+  intro. dest ==.
+  (* note that the notation for 42 is used *)
+  Case "foo = 42".
+    auto.
+  Case "foo <> 42".
+    auto.
+Qed.
+
+
+Goal forall foo bar baz,
+  (if foo == bar then
     if bar == baz then
       False
     else
@@ -255,4 +271,36 @@ Goal foo.
   NSCase "Right".
     constructor.
 Qed.
+
+Axiom classicT : forall P:Prop, {P} + {~P}.
+
+Notation "'_If' X 'then' Y 'else' Z" := (if classicT X then Y else Z) (at level 100).
+
+Ltac case_if :=
+  match goal with
+    | |- _If ?P then _ else _ =>
+      let A := fresh in
+      string of P in A;
+      let notP := constr:(~P) in
+      let B := fresh in
+      string of notP in B;
+      let strP := eval cbv in A in
+      let strnotP := eval cbv in B in
+      clear A; clear B;
+      destruct (classicT P);
+        [ fst_Case_tac strP | fst_Case_tac strnotP]
+  end.
+
+
+Goal forall a: nat, _If a = 0 then 0 = a else 0 <> a.
+Proof.
+  intro.
+  case_if.
+  Case "a = 0".
+    auto.
+  Case "a <> 0".
+    auto.
+Qed.
+
+
 
