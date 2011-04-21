@@ -227,6 +227,14 @@ Tactic Notation "destruct'" ident(id)
   ointros id;
   cases id (destruct id as pat _eqn) as pat.
 
+(* tactic to get the string of a constructor, in CPS style *)
+Tactic Notation "string_of" constr(a) tactic(cont) :=
+    let A := fresh in
+    string of a in A;
+    let strA := eval cbv in A in
+    clear A;
+    cont strA.
+
 (* verification *)
 
 Goal forall n, n >0 -> True.

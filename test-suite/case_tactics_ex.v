@@ -139,7 +139,8 @@ Qed.
 
 (* another tactic defined in the ml library is the "string of foo in
    H" tactic. It builds a coq string from any term, and put it in
-   H. Lets see how this can be useful *)
+   H. The wraper string_of is easier to use, even if it is written in
+   CPS style *)
 
 
 Lemma nat_eq_dec : forall (n m: nat), {n = m} + {n <> m}.
@@ -152,14 +153,10 @@ Notation "x == y" := (nat_eq_dec x y) (at level 70, no associativity).
 Tactic Notation "dest" constr(a) "==" constr(b) :=
   (* the tactic cannot just return the string, it has to be stored in
      some hypothesis *)
-  let A := fresh in
-  let B := fresh in
-  string of a in A; string of b in B;
-  let strA := eval cbv in A in
-  let strB := eval cbv in B in
-  clear A; clear B;
+  string_of a (fun strA =>
+  string_of b (fun strB =>
   destruct (a == b); [ fst_Case_tac (strA ^^ " = " ^^ strB)
-                     | fst_Case_tac (strA ^^ " <> " ^^ strB)].
+                     | fst_Case_tac (strA ^^ " <> " ^^ strB)])).
 
 Tactic Notation "dest" "==" :=
   match goal with
@@ -276,55 +273,20 @@ Axiom classicT : forall P:Prop, {P} + {~P}.
 
 Notation "'_If' X 'then' Y 'else' Z" := (if classicT X then Y else Z) (at level 100).
 
+
 Ltac case_if :=
   match goal with
     | |- _If ?P then _ else _ =>
-      let A := fresh in
-      string of P in A;
-      let notP := constr:(~P) in
-      let B := fresh in
-      string of notP in B;
-      let strP := eval cbv in A in
-      let strnotP := eval cbv in B in
-      clear A; clear B;
+      string_of P (fun strP =>
+      string_of (~P) (fun strnotP =>
       destruct (classicT P);
-        [ fst_Case_tac strP | fst_Case_tac strnotP]
+        [ fst_Case_tac strP | fst_Case_tac strnotP]))
   end.
 
 
 Goal forall a: nat, _If a = 0 then 0 = a else 0 <> a.
 Proof.
   intro.
-  case_if.
-  Case "a = 0".
-    auto.
-  Case "a <> 0".
-    auto.
-Qed.
-
-Ltac string_of_aux P cont :=
-  let A := fresh in
-  string of P in A;
-  let strP := eval cbv in A in
-  clear A;
-  cont strP.
-
-Ltac string_of P := string_of_aux P ltac:(fun id => id).
-
-Ltac case_if' :=
-  match goal with
-    | |- _If ?P then _ else _ =>
-      let strP := string_of P in
-      let strnotP := string_of (~P) in
-      destruct (classicT P);
-        [ fst_Case_tac strP | fst_Case_tac strnotP]
-  end.
-
-
-Goal forall a: nat, _If a = 0 then 0 = a else 0 <> a.
-Proof.
-  intro.
-  let strP := string_of P in idtac strP.
   case_if.
   Case "a = 0".
     auto.
