@@ -302,5 +302,32 @@ Proof.
     auto.
 Qed.
 
+Ltac string_of_aux P cont :=
+  let A := fresh in
+  string of P in A;
+  let strP := eval cbv in A in
+  clear A;
+  cont strP.
+
+Ltac string_of P := string_of_aux P ltac:(fun id => id).
+
+Ltac case_if' :=
+  match goal with
+    | |- _If ?P then _ else _ =>
+      let strP := string_of P in
+      let strnotP := string_of (~P) in
+      destruct (classicT P);
+        [ fst_Case_tac strP | fst_Case_tac strnotP]
+  end.
 
 
+Goal forall a: nat, _If a = 0 then 0 = a else 0 <> a.
+Proof.
+  intro.
+  let strP := string_of P in idtac strP.
+  case_if.
+  Case "a = 0".
+    auto.
+  Case "a <> 0".
+    auto.
+Qed.
