@@ -120,6 +120,7 @@ Ltac fst_Case_tac s :=
     | fst_Case_aux S14Case (S14Case) s
     | fst_Case_aux S15Case (S15Case) s].
 
+(* register fst_Case_aux so it can be called from the ml code *)
 Register First Case fst_Case_tac.
 
 

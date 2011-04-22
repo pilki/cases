@@ -7,6 +7,10 @@
 
 (* the file is adapted from the Constructors plugin by Matthieu Sozeau
    https://github.com/mattam82/Constructors
+
+   Copyright 2010 Matthieu Sozeau <mattam@mattam.org>. All rights
+   reserved.
+
 *)
 
 (* These are necessary for grammar extensions like the one at the end 
