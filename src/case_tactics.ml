@@ -73,19 +73,19 @@ let coqstring_of_string s =
         [| ascii_of_int (int_of_char s.[n]); aux (n+1)|])
   in aux 0
 
-let string_of_constr ?(with_notation=true) env c =
+let string_of_constr ?(with_notations=true) env c =
   (* backup the current mode for printing notation *)
   let back_notation = !Constrextern.print_no_symbol in
   (* activate of remove the printing of notations *)
-  Constrextern.print_no_symbol := not with_notation;
+  Constrextern.print_no_symbol := not with_notations;
   let stream = print_constr_env env c in
   msg_with Format.str_formatter stream;
   (* change back the printing of notations *)
   Constrextern.print_no_symbol := back_notation;
   Format.flush_str_formatter ()
 
-let coqstring_of_constr ?(with_notation=true) env c =
-  coqstring_of_string (string_of_constr ~with_notation env c)
+let coqstring_of_constr ?(with_notations=true) env c =
+  coqstring_of_string (string_of_constr ~with_notations env c)
 
 open Tacmach
 open Tacticals
@@ -93,6 +93,22 @@ open Tacexpr
 open Tacinterp
 open Genarg
 open Util
+open Rawterm
+open Libobject
+open Summary
+open Goptions
+
+(* define if notation shoud be used when using case tactics *)
+
+let use_notations = ref false
+
+let _ =
+  declare_bool_option
+    { optsync  = true;
+      optname  = "use notations with Case tactics";
+      optkey   = ["Notations";"With"; "Case"];
+      optread  = (fun () -> !use_notations);
+      optwrite = ((:=) use_notations) }
 
 
 (* build a continuation tactic from tactic expression (I
@@ -176,7 +192,7 @@ let apply_tac_leave_str env ind tac id opat =
   let next_tacs =
     Array.mapi (fun i _ ->
       let cd = mkConstruct (ind, succ i) in
-      let s =  string_of_constr ~with_notation:false env cd in
+      let s =  string_of_constr ~with_notations:(!use_notations) env cd in
       let s' =
         match names with
         | None -> coqstring_of_string s
@@ -200,7 +216,16 @@ let letin_string id cs =
 TACTIC EXTEND string_of_in
 | ["string" "of" constr(c) "in" ident(id) ] -> 
     [ fun gl -> (* The current goal *)
-      let s =  coqstring_of_string (string_of_constr (pf_env gl) c) in
+      let s =  coqstring_of_constr ~with_notations:true (pf_env gl) c in
+	(* Defined the list in the context using name [id]. *)
+      letin_string id s gl
+    ]
+END
+
+TACTIC EXTEND string_of_in_without
+| ["string" "of" constr(c) "without" "notations" "in" ident(id) ] -> 
+    [ fun gl -> (* The current goal *)
+      let s =  coqstring_of_constr ~with_notations:false (pf_env gl) c in
 	(* Defined the list in the context using name [id]. *)
       letin_string id s gl
     ]
@@ -218,10 +243,6 @@ TACTIC EXTEND run_tac_on_ind
       apply_tac_leave_str (pf_env gl) ind (snd tac) id (Some ipat) gl
     ]
 END
-
-open Rawterm
-open Libobject
-open Summary
 
 (* we want to register the "fst_case_tac" tactics, that selects which
    S*Case tactic is applied next. For that, we store it in a

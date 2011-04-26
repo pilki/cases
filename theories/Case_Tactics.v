@@ -228,10 +228,88 @@ Tactic Notation "destruct'" ident(id)
   ointros id;
   cases id (destruct id as pat _eqn) as pat.
 
+(* since multiple destruct is not supported, we do not need to specify
+   a pattern to be allowed to use the _eqn extension *)
+
+Tactic Notation "destruct'" constr(id) "_eqn" tactic(c) :=
+  cases id (destruct id as pat _eqn) as [] c.
+Tactic Notation "destruct'" ident(id) "_eqn" tactic(c) :=
+  ointros id;
+  cases id (destruct id as [] _eqn) as pat c.
+
+Tactic Notation "destruct'" constr(id) "_eqn":=
+  cases id (destruct id as [] _eqn) as pat.
+Tactic Notation "destruct'" ident(id) "_eqn":=
+  ointros id;
+  cases id (destruct id as [] _eqn) as pat.
+
+Tactic Notation "case'" constr(id) tactic(c) :=
+  ointros id;
+  cases id (case id) c.
+Tactic Notation "case'" constr(id):=
+  cases id (case id).
+Tactic Notation "case'" ident(id):=
+  ointros id;
+  cases id (case id).
+
+Tactic Notation "case'" constr(id)
+     "as" simple_intropattern(pat) tactic(c) :=
+  cases id (case id as pat) as pat c.
+Tactic Notation "case'" ident(id)
+     "as" simple_intropattern(pat) tactic(c) :=
+  ointros id;
+  cases id (case id as pat) as pat c.
+
+Tactic Notation "case'" constr(id)
+     "as" simple_intropattern(pat):=
+  cases id (case id as pat) as pat.
+Tactic Notation "case'" ident(id)
+     "as" simple_intropattern(pat):=
+  ointros id;
+  cases id (case id as pat) as pat.
+
+Tactic Notation "case'" constr(id)
+     "as" simple_intropattern(pat) "_eqn" tactic(c) :=
+  cases id (case id as pat _eqn) as pat c.
+Tactic Notation "case'" ident(id)
+     "as" simple_intropattern(pat) "_eqn" tactic(c) :=
+  ointros id;
+  cases id (case id as pat _eqn) as pat c.
+
+Tactic Notation "case'" constr(id)
+     "as" simple_intropattern(pat) "_eqn":=
+  cases id (case id as pat _eqn) as pat.
+Tactic Notation "case'" ident(id)
+     "as" simple_intropattern(pat) "_eqn":=
+  ointros id;
+  cases id (case id as pat _eqn) as pat.
+
+(* since multiple case is not supported, we do not need to specify
+   a pattern to be allowed to use the _eqn extension *)
+
+Tactic Notation "case'" constr(id) "_eqn" tactic(c) :=
+  cases id (case id as pat _eqn) as [] c.
+Tactic Notation "case'" ident(id) "_eqn" tactic(c) :=
+  ointros id;
+  cases id (case id as [] _eqn) as pat c.
+
+Tactic Notation "case'" constr(id) "_eqn":=
+  cases id (case id as [] _eqn) as pat.
+Tactic Notation "case'" ident(id) "_eqn":=
+  ointros id;
+  cases id (case id as [] _eqn) as pat.
+
 (* tactic to get the string of a constructor, in CPS style *)
 Tactic Notation "string_of" constr(a) tactic(cont) :=
     let A := fresh in
     string of a in A;
+    let strA := eval cbv in A in
+    clear A;
+    cont strA.
+
+Tactic Notation "string_of_without" constr(a) tactic(cont) :=
+    let A := fresh in
+    string of a without notations in A;
     let strA := eval cbv in A in
     clear A;
     cont strA.

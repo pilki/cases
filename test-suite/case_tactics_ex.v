@@ -129,11 +129,30 @@ Proof.
   simpl. f_equal. assumption.
 Qed.
 
-(* the library only defines induction' and destruct', because I
-   usually don't use case or elim. But you can of course do the
-   same. The only tactic related to inductive that I do not know how
-   to deal with is the inversion tactic since it does not produce the
-   same number of goal *)
+Goal forall n, n = 0 \/ n <> 0.
+Proof.
+  destruct' n as [|n'].
+  Case "O".
+    left; reflexivity.
+  Case "S n'".
+    right. intro H. inversion H.
+Qed.
+
+Require Import List.
+Goal forall l: list nat, l = nil \/ l = hd 0 l :: tl l.
+Proof.
+  case' l as [|n l'] _eqn.
+  Case "@nil".
+    left. reflexivity.
+  Case "cons n l'".
+    right. simpl. reflexivity.
+Qed.
+
+(* the library only defines induction', destruct' and case', because I
+   usually don't use elim. But you can of course do the same. The only
+   tactic related to inductive that I do not know how to deal with is
+   the inversion tactic since it does not produce the same number of
+   goal *)
 
 
 
@@ -293,3 +312,48 @@ Proof.
   Case "a <> 0".
     auto.
 Qed.
+
+
+(* one might have noticed that notations were used with the string_of
+   tactic, but not with the induction' tactic.*)
+
+(* to make the 'ed tactics use notation (this works only for
+   constructors without arguments for now), use *)
+Set Notations With Case.
+
+
+Goal forall n:nat, n >= 0.
+Proof.
+  induction' n as [|n'].
+  Case "0". (* notice the 0 *)
+    auto.
+  Case "S n'".
+    auto.
+Qed.
+
+
+(* to get a string without notations, use string_of_without *)
+
+Ltac case_if' :=
+  match goal with
+    | |- _If ?P then _ else _ =>
+      string_of_without P (fun strP =>
+      string_of_without (~P) (fun strnotP =>
+      destruct (classicT P);
+        [ fst_Case_tac strP | fst_Case_tac strnotP]))
+  end.
+
+
+Goal forall a: nat, _If a = 0 then 0 = a else 0 <> a.
+Proof.
+  intro.
+  case_if'.
+  Case "eq a O".
+    auto.
+  Case "not (eq a O)".
+    auto.
+Qed.
+
+
+
+
