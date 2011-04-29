@@ -228,6 +228,24 @@ Tactic Notation "destruct'" ident(id)
   ointros id;
   cases id (destruct id as pat _eqn) as pat.
 
+
+Tactic Notation "destruct'" constr(id)
+     "as" simple_intropattern(pat) "_eqn" tactic(c) ":" ident(H) :=
+  cases id (destruct id as pat _eqn:H) as pat c.
+Tactic Notation "destruct'" ident(id)
+     "as" simple_intropattern(pat) "_eqn" tactic(c) ":" ident(H) :=
+  ointros id;
+  cases id (destruct id as pat _eqn:H) as pat c.
+
+Tactic Notation "destruct'" constr(id)
+     "as" simple_intropattern(pat) "_eqn" ":" ident(H) :=
+  cases id (destruct id as pat _eqn:H) as pat.
+Tactic Notation "destruct'" ident(id)
+     "as" simple_intropattern(pat) "_eqn" ":" ident(H) :=
+  ointros id;
+  cases id (destruct id as pat _eqn:H) as pat.
+
+
 (* since multiple destruct is not supported, we do not need to specify
    a pattern to be allowed to use the _eqn extension *)
 
