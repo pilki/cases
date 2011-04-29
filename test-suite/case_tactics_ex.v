@@ -296,10 +296,7 @@ Notation "'_If' X 'then' Y 'else' Z" := (if classicT X then Y else Z) (at level 
 Ltac case_if :=
   match goal with
     | |- _If ?P then _ else _ =>
-      string_of P (fun strP =>
-      string_of (~P) (fun strnotP =>
-      destruct (classicT P);
-        [ fst_Case_tac strP | fst_Case_tac strnotP]))
+      destruct' (classicT P)
   end.
 
 

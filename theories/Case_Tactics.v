@@ -123,6 +123,21 @@ Ltac fst_Case_tac s :=
 (* register fst_Case_aux so it can be called from the ml code *)
 Register First Case fst_Case_tac.
 
+(* tactic to get the string of a constructor, in CPS style *)
+Tactic Notation "string_of" constr(a) tactic(cont) :=
+    let A := fresh in
+    string of a in A;
+    let strA := eval cbv in A in
+    clear A;
+    cont strA.
+
+Tactic Notation "string_of_without" constr(a) tactic(cont) :=
+    let A := fresh in
+    string of a without notations in A;
+    let strA := eval cbv in A in
+    clear A;
+    cont strA.
+
 
 (* [cases ty tac c] runs the tactic tac and produces the cases of
    inductive ty with tactic c. If ty is not an inductive but has an
@@ -143,9 +158,21 @@ Tactic Notation "put_in_fst_case" ident (id) :=
 
 Tactic Notation "cases" constr(ind) tactic(ftac) tactic(c) :=
   let t := ind_type ind in
-  let constr_name := fresh "CONSTR_NAME" in
-  (run_tac (ftac) on t in constr_name);
-  put_in_case constr_name c.
+  (* special cases for or and or_bool *)
+  match t with
+    | ?P1 \/ ?P2 =>
+      string_of P1 (fun strP1 =>
+      string_of P2 (fun strP2 =>
+      ftac; [c strP1 | c strP2]))
+    | {?P1} + {?P2} =>
+      string_of P1 (fun strP1 =>
+      string_of P2 (fun strP2 =>
+      ftac; [c strP1 | c strP2]))
+    | _ =>
+      let constr_name := fresh "CONSTR_NAME" in
+      (run_tac (ftac) on t in constr_name);
+      put_in_case constr_name c
+  end.
 
 Tactic Notation "cases" constr(ind) tactic(ftac) :=
   cases ind (ftac) (fst_Case_tac).
@@ -317,20 +344,6 @@ Tactic Notation "case'" ident(id) "_eqn":=
   ointros id;
   cases id (case id as [] _eqn) as pat.
 
-(* tactic to get the string of a constructor, in CPS style *)
-Tactic Notation "string_of" constr(a) tactic(cont) :=
-    let A := fresh in
-    string of a in A;
-    let strA := eval cbv in A in
-    clear A;
-    cont strA.
-
-Tactic Notation "string_of_without" constr(a) tactic(cont) :=
-    let A := fresh in
-    string of a without notations in A;
-    let strA := eval cbv in A in
-    clear A;
-    cont strA.
 
 (* verification *)
 
