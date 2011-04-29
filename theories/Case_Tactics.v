@@ -181,13 +181,31 @@ Tactic Notation "cases" constr(ind) tactic(ftac) :=
 Tactic Notation "cases" constr(ind) tactic(ftac)
      "as" simple_intropattern(pat) tactic(c) :=
   let t := ind_type ind in
-  let constr_name := fresh "CONSTR_NAME" in
-  (run_tac (ftac) on t as pat in constr_name);
-  put_in_case constr_name c.
+  (* special cases for or and or_bool *)
+  match t with
+    | ?P1 \/ ?P2 =>
+      string_of P1 (fun strP1 =>
+      string_of P2 (fun strP2 =>
+      ftac; [c strP1 | c strP2]))
+    | {?P1} + {?P2} =>
+      string_of P1 (fun strP1 =>
+      string_of P2 (fun strP2 =>
+      ftac; [c strP1 | c strP2]))
+    | _ =>
+      let constr_name := fresh "CONSTR_NAME" in
+        (run_tac (ftac) on t as pat in constr_name);
+        put_in_case constr_name c
+  end.
 
 Tactic Notation "cases" constr(ind) tactic(ftac)
      "as" simple_intropattern(pat) :=
   cases ind ftac as pat fst_Case_tac.
+
+Tactic Notation "apply_mutual_ind" constr(lemma) "on" constr_list(inds) :=
+  let constr_name := fresh "CONSTR_NAME" in
+    (run_tac (apply lemma) ons inds in constr_name);
+    put_in_case constr_name (fst_Case_tac).
+
 
 (*Ltac ointros id :=
   first [exists_hyp id | intros until id | idtac].*)
@@ -212,6 +230,18 @@ Tactic Notation "induction'" ident(id)
      "as" simple_intropattern(pat):=
   ointros id;
   cases id (induction id as pat) as pat.
+
+Tactic Notation "induction'" "1" :=
+  intros *;
+  let H := fresh in intro H; induction' H.
+Tactic Notation "induction'" "2" :=
+  intros *; intro; induction' 1.
+Tactic Notation "induction'" "3" :=
+  intros *; intro; induction' 2.
+Tactic Notation "induction'" "4" :=
+  intros *; intro; induction' 3.
+Tactic Notation "induction'" "5" :=
+  intros *; intro; induction' 4.
 
 
 Tactic Notation "destruct'" constr(id) tactic(c) :=

@@ -163,14 +163,7 @@ let get_names ((_, pat) as lpat) = match pat with
 | _ -> Some [| get_names_aux lpat|]
 
 
-(* the actual tactic *)
-let apply_tac_leave_str env ind tac id opat =
-  let names = 
-    match opat with
-    | None -> None
-    | Some pat ->
-        get_names pat in
-
+let constr_str_of_ind env ind = 
   (* Decompose the application of the inductive type to params and arguments. *)
   let ind, args =
     try Inductive.find_rectype env ind
@@ -178,31 +171,45 @@ let apply_tac_leave_str env ind tac id opat =
   in
   (* Find information about it (constructors, other inductives in the same block...) *)
   let mindspec = Global.lookup_inductive ind in
-  (* I don't know how to get the number of constructors of an
-     inductive so I use the array of types of constructors..*)
-
   let types = Inductive.type_of_constructors ind mindspec in
+  Array.mapi (fun i _ ->
+    let cd = mkConstruct (ind, succ i) in
+    string_of_constr ~with_notations:(!use_notations) env cd
+  ) types
+
+(* The array of tactics to be applied.*)
+let build_next_tacs names constr_str id =
+  Array.mapi (fun i s ->
+    let s' =
+      match names with
+      | None -> coqstring_of_string s
+      | Some a ->
+          let n = if a.(i) = "" then "" else " " ^ a.(i) in
+          coqstring_of_string (s ^ n)
+    in
+    Tactics.letin_tac None (Name id) s' (Some (!!coq_string)) nowhere
+  ) constr_str
+
+(* the actual tactic *)
+let apply_tac_leave_str env ind tac id opat =
+  let constr_str = constr_str_of_ind env ind in
+  let names = 
+    match opat with
+    | None -> None
+    | Some pat ->
+        get_names pat in
   (* we check we have the right number of names *)
   ( match names with
   | None -> ()
   | Some a ->
-      if Array.length a <> Array.length types then
+      if Array.length a <> Array.length constr_str then
         error "The intro pattern has a wrong number of cases");
-  (* The array of tactics to be applied.*)
-  let next_tacs =
-    Array.mapi (fun i _ ->
-      let cd = mkConstruct (ind, succ i) in
-      let s =  string_of_constr ~with_notations:(!use_notations) env cd in
-      let s' =
-        match names with
-        | None -> coqstring_of_string s
-        | Some a ->
-            let n = if a.(i) = "" then "" else " " ^ a.(i) in
-            coqstring_of_string (s ^ n)
-      in
-      Tactics.letin_tac None (Name id) s' (Some (!!coq_string)) nowhere
-      ) types in
-  tclTHENSV tac next_tacs
+  tclTHENSV tac (build_next_tacs names constr_str id)
+
+let apply_tac_leave_str_lst env inds tac id =
+  let constr_str =
+    Array.concat (List.map (constr_str_of_ind env) inds) in
+  tclTHENSV tac (build_next_tacs None constr_str id)
 
 
 let letin_string id cs =
@@ -241,6 +248,10 @@ TACTIC EXTEND run_tac_on_ind
      "as" simple_intropattern(ipat) "in" ident(id) ] -> 
     [ fun gl -> (* The current goal *)
       apply_tac_leave_str (pf_env gl) ind (snd tac) id (Some ipat) gl
+    ]
+| ["run_tac" tactic(tac) "ons" constr_list(ind) "in" ident(id) ] -> 
+    [ fun gl -> (* The current goal *)
+      apply_tac_leave_str_lst (pf_env gl) ind (snd tac) id gl
     ]
 END
 
