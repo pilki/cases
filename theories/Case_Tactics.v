@@ -375,6 +375,12 @@ Tactic Notation "case'" ident(id) "_eqn":=
   cases id (case id as [] _eqn) as pat.
 
 
+(* XXXXX this does NOT work in the general case *)
+Tactic Notation "inversion'" hyp(id) tactic(c):=
+  cases id (inversion id) c.
+Tactic Notation "inversion'" hyp(id):=
+  cases id (inversion id).
+
 (* verification *)
 
 Goal forall n, n >0 -> True.

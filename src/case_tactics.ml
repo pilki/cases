@@ -453,7 +453,7 @@ END
 TACTIC EXTEND econstructor'
 | ["econstructor'" int_or_var(n) tactic_opt(ok) ] ->
     [ mk_constructor true (Some (ioa_to_int n)) ok ]
-| ["eonstructor'" tactic_opt(ok) ] ->
+| ["econstructor'" tactic_opt(ok) ] ->
     [ mk_constructor true None ok]
 END
 
