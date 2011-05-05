@@ -50,7 +50,7 @@ Proof.
   Case "True".
   constructor.
   (* The subgoal has not been eliminated. Try to un-comment the next line *)
-  (*Case "1 = 1".*) 
+  (*Case "1 = 1".*)
   (* It fails with "Tactic failure: because we are working on a
      different case."*)
   constructor.
@@ -67,10 +67,10 @@ Qed.
 (* Inductive types *)
 
 (* when working with inductive types, it is recommended to write a
-tactic that automatically apply the proper (S* )Case tactic to each
-subgoal when performing a destruction or induction 
+   tactic that automatically apply the proper (S* )Case tactic to each
+   subgoal when performing a destruction or induction
 
-http://www.cis.upenn.edu/~bcpierce/sf/Rel.html#lab260
+   http://www.cis.upenn.edu/~bcpierce/sf/Rel.html#lab260
 *)
 
 Inductive pack2 (A:Prop) : Prop :=
@@ -82,16 +82,18 @@ Tactic Notation "pack2_cases" tactic(first) tactic(c) :=
   [ c "Pack1" | c "Pack2"].
 
 Goal forall A, pack2 A -> A.
-intros A PACK2.
-pack2_cases (destruct PACK2) Case.
+Proof.
+  intros A PACK2.
+  pack2_cases (destruct PACK2) Case.
 
-(* notice that Case := "Pack1" is already in the hypothesis. If you
-   are lazy, just press C-c C-a C-q or C-c C-a C-z to copy it directly
-   *)
-Case "Pack1".
-destruct H. assumption.
-Case "Pack2".
-assumption.
+  (* notice that Case := "Pack1" is already in the hypothesis. If you
+     are lazy, are using emacs and have added the insert_case.el in
+     your .emacs, just press C-c C-a C-q or C-c C-a C-z to copy it
+     directly *)
+  Case "Pack1".
+    destruct H. assumption.
+  Case "Pack2".
+    assumption.
 Qed.
 
 
@@ -129,6 +131,7 @@ Proof.
   simpl. f_equal. assumption.
 Qed.
 
+(* it also works with destruct' and case' *)
 Goal forall n, n = 0 \/ n <> 0.
 Proof.
   destruct' n as [|n'].
@@ -148,19 +151,17 @@ Proof.
     right. simpl. reflexivity.
 Qed.
 
-(* the library only defines induction', destruct' and case', because I
-   usually don't use elim. But you can of course do the same. The only
-   tactic related to inductive that I do not know how to deal with is
-   the inversion tactic since it does not produce the same number of
-   goal *)
+(* the library only defines induction', destruct' and case', because
+   those are the only one I use. But you can of course do the
+   same. The only tactic related to inductive that I do not know how
+   to deal with is the inversion tactic since it does not produce the
+   same number of goal. There is in fact a inversion' tactics, but it
+   fails every time some subgoals are automatically eliminated *)
 
 
-
-(* another tactic defined in the ml library is the "string of foo in
-   H" tactic. It builds a coq string from any term, and put it in
-   H. The wraper string_of is easier to use, even if it is written in
-   CPS style *)
-
+(* the primed tactics don't always use the name of the
+   constructor. There are two special cases for or (\/) and sumbool
+   ({}+{}) where the content of the hypothesis is put in the tag *)
 
 Lemma nat_eq_dec : forall (n m: nat), {n = m} + {n <> m}.
 Proof.
@@ -172,10 +173,7 @@ Notation "x == y" := (nat_eq_dec x y) (at level 70, no associativity).
 Tactic Notation "dest" constr(a) "==" constr(b) :=
   (* the tactic cannot just return the string, it has to be stored in
      some hypothesis *)
-  string_of a (fun strA =>
-  string_of b (fun strB =>
-  destruct (a == b); [ fst_Case_tac (strA ^^ " = " ^^ strB)
-                     | fst_Case_tac (strA ^^ " <> " ^^ strB)])).
+  destruct' (a == b).
 
 Tactic Notation "dest" "==" :=
   match goal with
@@ -200,7 +198,6 @@ Proof.
     auto.
 Qed.
 
-
 Goal forall foo bar baz,
   (if foo == bar then
     if bar == baz then
@@ -223,7 +220,6 @@ Proof.
   Case "foo <> bar"; SCase "bar = baz".
   apply H. subst. assumption.
 Qed.
-
 
 (* let's show how the apply' (and eapply') work *)
 
@@ -254,9 +250,7 @@ Proof.
 Qed.
 
 
-
 (* it also works with bindings and when lemma needs to be reducesed *)
-
 Definition true_imp_true:= forall (TRUE_in:True), True.
 Lemma useless: forall (n:nat) (EQ:n = n) (TRUE_out:True), true_imp_true.
 Proof. red. auto. Qed.
@@ -288,6 +282,7 @@ Goal foo.
     constructor.
 Qed.
 
+(* Other example *)
 Axiom classicT : forall P:Prop, {P} + {~P}.
 
 Notation "'_If' X 'then' Y 'else' Z" := (if classicT X then Y else Z) (at level 100).
@@ -310,6 +305,28 @@ Proof.
     auto.
 Qed.
 
+(* another tactic defined in the ml library is the "string of foo in
+   H" tactic. It builds a coq string from any term, and put it in
+   H. The wraper string_of is easier to use, even if it is written in
+   CPS style *)
+
+Ltac Case_Goal :=
+  match goal with
+    | |- ?G =>
+      string_of G (fun strG =>
+        fst_Case_tac strG)
+  end.
+
+Goal (True /\ 1 = 1).
+Proof.
+  split; Case_Goal.
+  Case "True".
+    constructor.
+  Case "1 = 1".
+    reflexivity.
+Qed.
+
+
 
 (* one might have noticed that notations were used with the string_of
    tactic, but not with the induction' tactic.*)
@@ -317,8 +334,6 @@ Qed.
 (* to make the 'ed tactics use notation (this works only for
    constructors without arguments for now), use *)
 Set Notations With Case.
-
-
 Goal forall n:nat, n >= 0.
 Proof.
   induction' n as [|n'].
@@ -331,26 +346,18 @@ Qed.
 
 (* to get a string without notations, use string_of_without *)
 
-Ltac case_if' :=
+Ltac Case_Goal' :=
   match goal with
-    | |- _If ?P then _ else _ =>
-      string_of_without P (fun strP =>
-      string_of_without (~P) (fun strnotP =>
-      destruct (classicT P);
-        [ fst_Case_tac strP | fst_Case_tac strnotP]))
+    | |- ?G =>
+      string_of_without G (fun strG =>
+        fst_Case_tac strG)
   end.
 
-
-Goal forall a: nat, _If a = 0 then 0 = a else 0 <> a.
+Goal (1 <= 2 /\ 1 <> 2).
 Proof.
-  intro.
-  case_if'.
-  Case "eq a O".
-    auto.
-  Case "not (eq a O)".
-    auto.
+  split; Case_Goal'.
+  Case "le (S O) (S (S O))".
+    constructor. constructor.
+  Case "not (eq (S O) (S (S O)))".
+    congruence.
 Qed.
-
-
-
-
