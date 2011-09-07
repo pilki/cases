@@ -381,6 +381,37 @@ Tactic Notation "inversion'" hyp(id) tactic(c):=
 Tactic Notation "inversion'" hyp(id):=
   cases id (inversion id).
 
+
+Inductive _MARK_CLEAR_ : Prop :=
+  _MARK_CLEAR_INTRO_: _MARK_CLEAR_.
+
+Ltac header_clear' :=
+  generalize _MARK_CLEAR_INTRO_;
+  repeat match reverse goal with
+    | H : String.string |- _ =>
+      let strA := eval cbv in H in
+      match strA with
+        | String.EmptyString => revert H
+        | String.String _ _ => revert H
+      end
+  end.
+
+Ltac footer_clear' :=
+  repeat match goal with
+           | H : _MARK_CLEAR_ |- _ => clear H
+           | |- _ => intro at top
+         end.
+
+(* not useful, but here for coherence *)
+Tactic Notation "clear'" :=
+  header_clear'; clear; footer_clear'.
+
+Tactic Notation "clear'" "-" hyp_list(Hl) :=
+  header_clear'; clear - Hl; footer_clear'.
+
+
+
+
 (* verification *)
 
 Goal forall n, n >0 -> True.
