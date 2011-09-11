@@ -398,11 +398,13 @@ Ltac header_clear' :=
 
 Ltac footer_clear' :=
   repeat match goal with
-           | H : _MARK_CLEAR_ |- _ => clear H
+           | H : _MARK_CLEAR_ |- _ => fail 1
            | |- _ => intro at top
-         end.
+         end;
+  match goal with
+    | H : _MARK_CLEAR_ |- _ => clear H
+  end.
 
-(* not useful, but here for coherence *)
 Tactic Notation "clear'" :=
   header_clear'; clear; footer_clear'.
 
