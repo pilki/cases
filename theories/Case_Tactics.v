@@ -411,6 +411,33 @@ Tactic Notation "clear'" :=
 Tactic Notation "clear'" "-" hyp_list(Hl) :=
   header_clear'; clear - Hl; footer_clear'.
 
+Definition __END_OF_ASSERT__ (str: String.string) (A:Type) := A.
+Lemma remove__END_OF_ASSERT__ str A:
+  A -> __END_OF_ASSERT__  str A. unfold __END_OF_ASSERT__; auto. Qed.
+Lemma add__END_OF_ASSERT__ str A:
+  __END_OF_ASSERT__ str A -> A. unfold __END_OF_ASSERT__; auto. Qed.
+Opaque __END_OF_ASSERT__.
+
+Tactic Notation "End_of_assert" := apply (remove__END_OF_ASSERT__ "").
+Tactic Notation "End_of_assert" ident(id) :=
+  string_of id (fun strid =>
+    apply (remove__END_OF_ASSERT__ strid)).
+Tactic Notation "assert'" constr(H) :=
+  assert (H);[fst_Case_tac "Assert" | apply (add__END_OF_ASSERT__ "")].
+  
+Tactic Notation "assert'" constr(H)  "as" ident(id):=
+  pose proof (Coq.Init.Logic.I) as id;
+  string_of id (fun strid =>
+  clear id;
+  assert (H) as id;[ fst_Case_tac ("Assert: " ^^ strid)
+                   | apply (add__END_OF_ASSERT__ strid)]).
+Tactic Notation "split'" :=
+  match goal with
+    |  |- _ <-> _ =>
+      split ; [fst_Case_tac "->" | fst_Case_tac "<-"]
+    | |- _ /\ _ =>
+      split ; [fst_Case_tac "left" | fst_Case_tac "right"]
+  end.
 
 
 
