@@ -48,6 +48,132 @@ Ltac S13Case name := Case_aux S13Case name.
 Ltac S14Case name := Case_aux S14Case name.
 Ltac S15Case name := Case_aux S15Case name.
 
+(*(* the S*Case' tactics also create an "End_of_case" subgoal *)
+
+
+Definition __End_of_Case' (name:String.string) := True -> name = name.
+Definition __End_of_SCase' (name:String.string) := True -> name = name.
+Definition __End_of_SSCase' (name:String.string) := True -> name = name.
+Definition __End_of_S3Case' (name:String.string) := True -> name = name.
+Definition __End_of_S4Case' (name:String.string) := True -> name = name.
+Definition __End_of_S5Case' (name:String.string) := True -> name = name.
+Definition __End_of_S6Case' (name:String.string) := True -> name = name.
+Definition __End_of_S7Case' (name:String.string) := True -> name = name.
+Definition __End_of_S8Case' (name:String.string) := True -> name = name.
+Definition __End_of_S9Case' (name:String.string) := True -> name = name.
+Definition __End_of_S10Case' (name:String.string) := True -> name = name.
+Definition __End_of_S11Case' (name:String.string) := True -> name = name.
+Definition __End_of_S12Case' (name:String.string) := True -> name = name.
+Definition __End_of_S13Case' (name:String.string) := True -> name = name.
+Definition __End_of_S14Case' (name:String.string) := True -> name = name.
+Definition __End_of_S15Case' (name:String.string) := True -> name = name.
+
+Lemma EOC1 (name:String.string) :  __End_of_Case' name.
+Proof.
+  intro; reflexivity. 
+Qed.
+
+Lemma __End_of_case'_aux:
+  {P:String.string -> Prop| forall name, P name}.
+Proof.
+  apply (@exist _ _ (fun s => s = s)). intro. auto.
+Qed.
+
+Let __End_of_case' := proj1_sig __End_of_case'_aux.
+Let EOC0 : forall name, __End_of_case' name := proj2_sig __End_of_case'_aux.
+
+Goal __End_of_case' "salut".
+apply (EOC0 "salut").
+
+
+
+
+Lemma EOC2 (name:String.string) :  __End_of_SCase' name. intro; reflexivity. Qed.
+Lemma EOC3 (name:String.string) :  __End_of_SSCase' name. intro; reflexivity. Qed.
+Lemma EOC4 (name:String.string) :  __End_of_S3Case' name. intro; reflexivity. Qed.
+Lemma EOC5 (name:String.string) :  __End_of_S4Case' name. intro; reflexivity. Qed.
+Lemma EOC6 (name:String.string) :  __End_of_S5Case' name. intro; reflexivity. Qed.
+Lemma EOC7 (name:String.string) :  __End_of_S6Case' name. intro; reflexivity. Qed.
+Lemma EOC8 (name:String.string) :  __End_of_S7Case' name. intro; reflexivity. Qed.
+Lemma EOC9 (name:String.string) :  __End_of_S8Case' name. intro; reflexivity. Qed.
+Lemma EOC10 (name:String.string) :  __End_of_S9Case' name. intro; reflexivity. Qed.
+Lemma EOC11 (name:String.string) :  __End_of_S10Case' name. intro; reflexivity. Qed.
+Lemma EOC12 (name:String.string) :  __End_of_S11Case' name. intro; reflexivity. Qed.
+Lemma EOC13 (name:String.string) :  __End_of_S12Case' name. intro; reflexivity. Qed.
+Lemma EOC14 (name:String.string) :  __End_of_S13Case' name. intro; reflexivity. Qed.
+Lemma EOC15 (name:String.string) :  __End_of_S14Case' name. intro; reflexivity. Qed.
+Lemma EOC16 (name:String.string) :  __End_of_S15Case' name. intro; reflexivity. Qed.
+
+Global Opaque __End_of_Case'
+ __End_of_SCase'
+ __End_of_SSCase'
+ __End_of_S3Case'
+ __End_of_S4Case'
+ __End_of_S5Case'
+ __End_of_S6Case'
+ __End_of_S7Case'
+ __End_of_S8Case'
+ __End_of_S9Case'
+ __End_of_S10Case'
+ __End_of_S11Case'
+ __End_of_S12Case'
+ __End_of_S13Case'
+ __End_of_S14Case'
+ __End_of_S15Case'.
+
+
+Lemma Case_aux' {P:Type} (A:Type): P -> A -> P.
+Proof.
+  tauto.
+Qed.
+
+Tactic Notation "Case_aux'" ident(x) constr(name) constr(endof):=
+  first [
+    set (x := name); simpl in x; move_to_top x;
+    apply (Case_aux' (endof name));[|simpl]
+  | fail 1 "Case' tactics create new cases, they do not check existing ones" ].
+
+Ltac Case' name := Case_aux' Case name __End_of_Case'.
+Ltac SCase' name := Case_aux' SCase name __End_of_SCase'.
+Ltac SSCase' name := Case_aux' SSCase name __End_of_SSCase'.
+Ltac S3Case' name := Case_aux' S3Case name __End_of_S3Case'.
+Ltac S4Case' name := Case_aux' S4Case name __End_of_S4Case'.
+Ltac S5Case' name := Case_aux' S5Case name __End_of_S5Case'.
+Ltac S6Case' name := Case_aux' S6Case name __End_of_S6Case'.
+Ltac S7Case' name := Case_aux' S7Case name __End_of_S7Case'.
+Ltac S8Case' name := Case_aux' S8Case name __End_of_S8Case'.
+Ltac S9Case' name := Case_aux' S9Case name __End_of_S9Case'.
+Ltac S10Case' name := Case_aux' S10Case name __End_of_S10Case'.
+Ltac S11Case' name := Case_aux' S11Case name __End_of_S11Case'.
+Ltac S12Case' name := Case_aux' S12Case name __End_of_S12Case'.
+Ltac S13Case' name := Case_aux' S13Case name __End_of_S13Case'.
+Ltac S14Case' name := Case_aux' S14Case name __End_of_S14Case'.
+Ltac S15Case' name := Case_aux' S15Case name __End_of_S15Case'.
+
+
+Ltac End_of_Case' name := apply (EOC1 name).
+Ltac End_of_SCase' name := apply (EOC2 name).
+Ltac End_of_SSCase' name := apply (EOC3 name).
+Ltac End_of_S3Case' name := apply (EOC4 name).
+Ltac End_of_S4Case' name := apply (EOC5 name).
+Ltac End_of_S5Case' name := apply (EOC6 name).
+Ltac End_of_S6Case' name := apply (EOC7 name).
+Ltac End_of_S7Case' name := apply (EOC8 name).
+Ltac End_of_S8Case' name := apply (EOC9 name).
+Ltac End_of_S9Case' name := apply (EOC10 name).
+Ltac End_of_S10Case' name := apply (EOC11 name).
+Ltac End_of_S11Case' name := apply (EOC12 name).
+Ltac End_of_S12Case' name := apply (EOC13 name).
+Ltac End_of_S13Case' name := apply (EOC14 name).
+Ltac End_of_S14Case' name := apply (EOC15 name).
+Ltac End_of_S15Case' name := apply (EOC16 name).
+
+Goal True.
+  SCase' "lol".
+  constructor.
+  End_of_SCase' "llol".
+  End_of_Case' "mlol".
+*)
 (* The R(S* )Case tactics rename the case. Usefull for the apply'
    tactic *)
 
@@ -416,7 +542,7 @@ Lemma remove__END_OF_ASSERT__ str A:
   A -> __END_OF_ASSERT__  str A. unfold __END_OF_ASSERT__; auto. Qed.
 Lemma add__END_OF_ASSERT__ str A:
   __END_OF_ASSERT__ str A -> A. unfold __END_OF_ASSERT__; auto. Qed.
-Opaque __END_OF_ASSERT__.
+Global Opaque __END_OF_ASSERT__.
 
 Tactic Notation "End_of_assert" := apply (remove__END_OF_ASSERT__ "").
 Tactic Notation "End_of_assert" ident(id) :=
