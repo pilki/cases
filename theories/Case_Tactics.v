@@ -1,4 +1,4 @@
-(*******************************************************************)
+ (*******************************************************************)
 (* Copyright 2010 Alexandre Pilkiewicz                             *)
 (*     <alexandre.pilkiewicz@polytechnique.org >                   *)
 (* This program is free software. It comes without any warranty,   *)
@@ -8,7 +8,7 @@
 (* for more details.                                               *)
 (*******************************************************************)
 
-Add ML Path "/Users/pilki/cases_tactics/src".
+
 Declare ML Module "case_tactics_plugin".
 
 (* (S* )Case tactics by Aaron Bohannon *)
