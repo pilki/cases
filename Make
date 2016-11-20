@@ -6,8 +6,9 @@ CASE_TACTICS_PLUGIN = "src/case_tactics_plugin.cma"
 CASE_TACTICS_PLUGINOPT = "src/case_tactics_plugin.cmxs"
 COQDOC = "$(COQBIN)coqdoc -interpolate -utf8"
 CAMLP4OPTIONS = "-loc loc"
-src/case_tactics.ml
+src/case_tactics.ml4
 src/case_tactics_plugin_mod.ml
+src/case_tactics_plugin.mllib
 theories/Case_Tactics.v
 theories/NoCase_Tactics.v
 test-suite/case_tactics_ex.v

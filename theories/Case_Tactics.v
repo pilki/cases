@@ -8,6 +8,7 @@
 (* for more details.                                               *)
 (*******************************************************************)
 
+Add ML Path "/Users/pilki/cases_tactics/src".
 Declare ML Module "case_tactics_plugin".
 
 (* (S* )Case tactics by Aaron Bohannon *)
@@ -249,6 +250,7 @@ Ltac fst_Case_tac s :=
 (* register fst_Case_aux so it can be called from the ml code *)
 Register First Case fst_Case_tac.
 
+
 (* tactic to get the string of a constructor, in CPS style *)
 Tactic Notation "string_of" constr(a) tactic(cont) :=
     let A := fresh in
@@ -432,17 +434,6 @@ Tactic Notation "destruct'" ident(id)
 (* since multiple destruct is not supported, we do not need to specify
    a pattern to be allowed to use the _eqn extension *)
 
-Tactic Notation "destruct'" constr(id) "_eqn" tactic(c) :=
-  cases id (destruct id as pat _eqn) as [] c.
-Tactic Notation "destruct'" ident(id) "_eqn" tactic(c) :=
-  ointros id;
-  cases id (destruct id as [] _eqn) as pat c.
-
-Tactic Notation "destruct'" constr(id) "_eqn":=
-  cases id (destruct id as [] _eqn) as pat.
-Tactic Notation "destruct'" ident(id) "_eqn":=
-  ointros id;
-  cases id (destruct id as [] _eqn) as pat.
 
 Tactic Notation "case'" constr(id) tactic(c) :=
   ointros id;
@@ -487,18 +478,6 @@ Tactic Notation "case'" ident(id)
 
 (* since multiple case is not supported, we do not need to specify
    a pattern to be allowed to use the _eqn extension *)
-
-Tactic Notation "case'" constr(id) "_eqn" tactic(c) :=
-  cases id (case id as pat _eqn) as [] c.
-Tactic Notation "case'" ident(id) "_eqn" tactic(c) :=
-  ointros id;
-  cases id (case id as [] _eqn) as pat c.
-
-Tactic Notation "case'" constr(id) "_eqn":=
-  cases id (case id as [] _eqn) as pat.
-Tactic Notation "case'" ident(id) "_eqn":=
-  ointros id;
-  cases id (case id as [] _eqn) as pat.
 
 
 (* XXXXX this does NOT work in the general case *)

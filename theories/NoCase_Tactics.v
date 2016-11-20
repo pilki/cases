@@ -170,11 +170,11 @@ Tactic Notation "destruct'" ident(id)
 Tactic Notation "destruct'" ident(id)
      "as" simple_intropattern(pat) "_eqn" tactic(c) :=
   ointros id;
-  cases id (destruct id as pat _eqn) as pat c.
+  cases id (destruct id as pat eqn:?) as pat c.
 Tactic Notation "destruct'" ident(id)
      "as" simple_intropattern(pat) "_eqn":=
   ointros id;
-  cases id (destruct id as pat _eqn) as pat.
+  cases id (destruct id as pat eqn:?) as pat.
 
 
 (* constructor' does not come with the tactic version, because it does

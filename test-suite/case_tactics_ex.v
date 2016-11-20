@@ -221,66 +221,11 @@ Proof.
   apply H. subst. assumption.
 Qed.
 
-(* let's show how the apply' (and eapply') work *)
-
-Lemma refl: forall (n m: nat) (EQ: n = m), m = n.
-Proof. auto. Qed.
-
-Lemma trans : forall (n m:nat) 
-  (nEQm: n = m) (p:nat), m = p-> n = p.
-Proof. congruence. Qed.
-
-
-Lemma refl_trans: forall (n m p: nat), n = m -> m = p -> p = n.
-Proof.
-  intros n m p EQnm EQmp.
-  (* we first apply refl *)
-  apply' refl.
-  (* Case := "EQ" has been automatically inserted (ok, not super
-     useful here since we have only one subgoal. But it's an exemple
-     file *)
-  Case "EQ".
-  eapply' trans.
-  SCase "nEQm".
-  eassumption.
-  (* Note here that this hypothesis was not named. An arbitrary name
-     has been chosen. It can be replaced by the NSCase tactic *)
-  NSCase "mEQp".
-  assumption.
-Qed.
-
 
 (* it also works with bindings and when lemma needs to be reducesed *)
 Definition true_imp_true:= forall (TRUE_in:True), True.
 Lemma useless: forall (n:nat) (EQ:n = n) (TRUE_out:True), true_imp_true.
 Proof. red. auto. Qed.
-
-Goal true_imp_true.
-  apply' useless with 0.
-  Case "EQ".
-  reflexivity.
-  Case "TRUE_out".
-  apply' useless with (n := 0) (1 := eq_refl 0).
-  Case "TRUE_out"; SCase "EQ". 
-  constructor.
-  Case "TRUE_out"; SCase "TRUE_in".
-  constructor.
-Qed.
-
-
-
-Inductive foo :Prop :=
-| foo1 : forall (F:False), foo
-| foo2 : forall (T:True /\ True), foo.
-Goal foo.
-  constructor' 2.
-  Case "T".
-  constructor'.
-  NSCase "Left".
-    constructor.
-  NSCase "Right".
-    constructor.
-Qed.
 
 (* Other example *)
 Axiom classicT : forall P:Prop, {P} + {~P}.

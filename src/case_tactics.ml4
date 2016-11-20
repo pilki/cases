@@ -27,10 +27,12 @@ open Coqlib
 open Termops
 open Pp
 
+let __coq_plugin_name = "Case_tactics"
+
 (* Getting constrs (primitive Coq terms) from exisiting Coq libraries. *)
 
 let find_constant contrib dir s =
-  Libnames.constr_of_global (Coqlib.find_reference contrib dir s)
+  Globnames.printable_constr_of_global (Coqlib.find_reference contrib dir s)
 
 let contrib_name = "Case_tactics"
 let init_constant dir s = find_constant contrib_name dir s
@@ -93,10 +95,11 @@ open Tacexpr
 open Tacinterp
 open Genarg
 open Util
-open Rawterm
+(*open Rawterm*)
 open Libobject
-open Summary
 open Goptions
+open Misctypes
+open Errors
 
 (* define if notation shoud be used when using case tactics *)
 
@@ -105,8 +108,9 @@ let use_notations = ref false
 let _ =
   declare_bool_option
     { optsync  = true;
+      optdepr  = false;
       optname  = "use notations with Case tactics";
-      optkey   = ["Notations";"With"; "Case"];
+      optkey   = ["Notations"; "With"; "Case"];
       optread  = (fun () -> !use_notations);
       optwrite = ((:=) use_notations) }
 
@@ -114,53 +118,62 @@ let _ =
 (* build a continuation tactic from tactic expression (I
    think... Taken from the quote plugin )*)
 (*let make_cont k x =
-  let k = TacDynamic(dummy_loc, Tacinterp.tactic_in (fun _ -> fst k)) in
-  let x = TacDynamic(dummy_loc, Pretyping.constr_in x) in
+  let k = TacDynamic(Loc.dummy_loc, Tacinterp.tactic_in (fun _ -> fst k)) in
+  let x = TacDynamic(Loc.dummy_loc, Pretyping.constr_in x) in
   let tac = <:tactic<let cont := $k in cont $x>> in
   Tacinterp.interp tac*)
 let make_cont k x =
-  let k = TacDynamic(dummy_loc, Tacinterp.tactic_in (fun _ -> k)) in
-  let x = TacDynamic(dummy_loc, Pretyping.constr_in x) in
+  let k = TacDynamic(Loc.dummy_loc, Tacinterp.tactic_in (fun _ -> k)) in
+  let x = TacDynamic(Loc.dummy_loc, Pretyping.constr_in x) in
   let tac = <:tactic<let cont := $k in cont $x>> in
   Tacinterp.interp tac
 
 (* A clause specifying that the [let] should not try to fold anything the goal
    matching the list of constructors (see [letin_tac] below). *)
 
-let nowhere = { onhyps = Some []; concl_occs = Rawterm.no_occurrences_expr }
+let nowhere = { Locus.onhyps = Some [];
+    	        Locus.concl_occs = Locus.NoOccurrences }
 
 (* getting the names of the variable from a pattern construct to add
    strings like "S n'" instead of just "S" *)
 
-let rec get_names_aux (_,pat) = match pat with
-| IntroWildcard -> "_"
+let get_names_naming = function
+| IntroIdentifier id -> string_of_id id
+| IntroFresh id ->  "?" ^ (string_of_id id)
 | IntroAnonymous -> "?"
-| IntroForthcoming _ ->
-    error "Forthcoming pattern not allowed"
-| IntroFresh id ->
-    "?" ^ (string_of_id id)
-| IntroRewrite _->
-    error "Rewriting pattern not allowed"
-| IntroOrAndPattern [l] ->
+
+let rec get_names_aux  (_,pat) = match pat with
+| IntroForthcoming _ -> error "Forthcoming pattern not allowed"
+| IntroNaming naming_pattern -> get_names_naming naming_pattern
+| IntroAction action_pattern ->
+  match action_pattern with
+  | IntroWildcard -> "_"
+  | IntroOrAndPattern [l] ->
     let l = List.map get_names_aux l in
     "(" ^ (String.concat ", "  l) ^")"
-| IntroOrAndPattern l ->
-    error "Disjunctive patterns not allowed"
-| IntroIdentifier id ->
-    string_of_id id
+  | IntroOrAndPattern l -> error "Disjunctive patterns not allowed"
+  | IntroInjection _ -> error "Injection intros not allowed"
+  | IntroApplyOn _ -> error "Apply On intros not allowed"
+  | IntroRewrite _ -> error "Rewritting patterns not allowed"
 
 let get_names ((_, pat) as lpat) = match pat with
 (* we accept an empty pattern for the "destruction" tactic, since it
     is needed to allow the _eqn thing *)
-
-| IntroOrAndPattern [[]] -> None
-| IntroOrAndPattern l ->
+| IntroForthcoming _ -> error "Forthcoming pattern not allowed"
+| IntroNaming naming_pattern -> Some [|get_names_naming naming_pattern|]
+| IntroAction action_pattern ->
+  match action_pattern with
+  | IntroWildcard -> Some [| "_" |]
+  | IntroOrAndPattern [[]] -> None
+  | IntroOrAndPattern l ->
     let lnames =
       List.map
        (fun conj ->
          String.concat " " (List.map get_names_aux conj)) l in
     Some (Array.of_list lnames)
-| _ -> Some [| get_names_aux lpat|]
+  | IntroInjection _ -> error "Injection intros not allowed"
+  | IntroApplyOn _ -> error "Apply On intros not allowed"
+  | IntroRewrite _ -> error "Rewritting patterns not allowed"
 
 
 let constr_str_of_ind env ind = 
@@ -170,10 +183,10 @@ let constr_str_of_ind env ind =
     with Not_found -> error "Unknown inductive"
   in
   (* Find information about it (constructors, other inductives in the same block...) *)
-  let mindspec = Global.lookup_inductive ind in
+  let mindspec = Global.lookup_inductive (fst ind) in
   let types = Inductive.type_of_constructors ind mindspec in
   Array.mapi (fun i _ ->
-    let cd = mkConstruct (ind, succ i) in
+    let cd = mkConstruct (fst ind, succ i) in
     string_of_constr ~with_notations:(!use_notations) env cd
   ) types
 
@@ -204,12 +217,12 @@ let apply_tac_leave_str env ind tac id opat =
   | Some a ->
       if Array.length a <> Array.length constr_str then
         error "The intro pattern has a wrong number of cases");
-  tclTHENSV tac (build_next_tacs names constr_str id)
+  Tacticals.New.tclTHENS tac (Array.to_list (build_next_tacs names constr_str id))
 
-let apply_tac_leave_str_lst env inds tac id =
+let apply_tac_leave_str_lst env inds tac id = 
   let constr_str =
     Array.concat (List.map (constr_str_of_ind env) inds) in
-  tclTHENSV tac (build_next_tacs None constr_str id)
+  Tacticals.New.tclTHENS tac (Array.to_list (build_next_tacs None constr_str id))
 
 
 let letin_string id cs =
@@ -219,39 +232,42 @@ let letin_string id cs =
    Tactic Notation does. There's currently no way to return a term 
    through an extended tactic, hence the use of a let binding. *)
 
+DECLARE PLUGIN "case_tactics_plugin"
+
 (* the tactic that builds a coq string from a term *)
 TACTIC EXTEND string_of_in
 | ["string" "of" constr(c) "in" ident(id) ] -> 
-    [ fun gl -> (* The current goal *)
-      let s =  coqstring_of_constr ~with_notations:true (pf_env gl) c in
+    [ Proofview.Goal.enter (fun gl -> (* The current goal *)
+      let s =  coqstring_of_constr ~with_notations:true (Proofview.Goal.env gl) c in
 	(* Defined the list in the context using name [id]. *)
-      letin_string id s gl
+      letin_string id s)
     ]
 END
 
+
 TACTIC EXTEND string_of_in_without
 | ["string" "of" constr(c) "without" "notations" "in" ident(id) ] -> 
-    [ fun gl -> (* The current goal *)
-      let s =  coqstring_of_constr ~with_notations:false (pf_env gl) c in
+    [ Proofview.Goal.enter (fun gl -> (* The current goal *)
+      let s =  coqstring_of_constr ~with_notations:false (Proofview.Goal.env gl) c in
 	(* Defined the list in the context using name [id]. *)
-      letin_string id s gl
+      letin_string id s)
     ]
 END
 
 (* tactic that runs a tac and write in "id" the name of the branch we are in *)
 TACTIC EXTEND run_tac_on_ind
 | ["run_tac" tactic(tac) "on" constr(ind) "in" ident(id) ] -> 
-    [ fun gl -> (* The current goal *)
-      apply_tac_leave_str (pf_env gl) ind (snd tac) id None gl
+    [ Proofview.Goal.enter (fun gl -> (* The current goal *)
+      apply_tac_leave_str (Proofview.Goal.env gl) ind  (Tacinterp.eval_tactic tac) id None)
     ]
 | ["run_tac" tactic(tac) "on" constr(ind)
      "as" simple_intropattern(ipat) "in" ident(id) ] -> 
-    [ fun gl -> (* The current goal *)
-      apply_tac_leave_str (pf_env gl) ind (snd tac) id (Some ipat) gl
+    [ Proofview.Goal.enter (fun gl -> (* The current goal *)
+      apply_tac_leave_str (Proofview.Goal.env gl) ind (Tacinterp.eval_tactic tac) id (Some ipat))
     ]
 | ["run_tac" tactic(tac) "ons" constr_list(ind) "in" ident(id) ] -> 
-    [ fun gl -> (* The current goal *)
-      apply_tac_leave_str_lst (pf_env gl) ind (snd tac) id gl
+    [ Proofview.Goal.enter (fun gl -> (* The current goal *)
+      apply_tac_leave_str_lst (Proofview.Goal.env gl) ind (Tacinterp.eval_tactic tac) id)
     ]
 END
 
@@ -265,24 +281,24 @@ END
 (* this might be a bit ugly... It's a reference on the tactic that
    select the next case tactic *)
 let fst_case_ref = ref None
-let fst_case () =
+(*let fst_case () =
   match !fst_case_ref with
   | None -> None
   | Some t -> Some (make_cont (glob_tactic t))
-
-let (fst_case_obj,_) =
+*)
+let fst_case_obj =
   declare_object
-    {(default_object "Firt Case") with
+    {( default_object "Firt Case") with
        cache_function = (fun (_,fc) -> fst_case_ref := fc);
        load_function = (fun _ (_,fc) -> fst_case_ref := fc)}
 
-let _ = declare_summary "Firt Case"
-	  { freeze_function = (fun () -> !fst_case_ref);
+let _ = Summary.declare_summary "Firt Case"
+	  { freeze_function = (fun _ -> !fst_case_ref);
 	    unfreeze_function = ((:=) fst_case_ref);
 	    init_function = (fun () -> fst_case_ref := None) }
 
 let declare_fst_case t =
-  if fst_case () = None then
+  if !fst_case_ref = None then
     Lib.add_anonymous_leaf (fst_case_obj (Some t))
   else
     error "The tactic has already been registered. You cannot change it."
@@ -292,7 +308,7 @@ let declare_fst_case t =
 
 VERNAC COMMAND EXTEND RegisterFstCase
   [ "Register" "First" "Case" tactic(t) ] ->
-    [declare_fst_case t]
+    [ declare_fst_case t ]
 END
 
 
@@ -336,133 +352,9 @@ let rec list_of_no_dep_names concl_nprod exclude_num thmy =
         else
           hyp_name :: tail
 
-    | LetIn(_,a,_,t) -> build n nth_non_dep (subst1 a t)
+    | LetIn(_,a,_,t) -> build n nth_non_dep (Vars.subst1 a t)
     | Cast(t,_,_) -> build n nth_non_dep t
     | _ -> []
   in
   let limit = nb_prod thmy - concl_nprod in
   if limit <= 0 then None else Some (build limit 0 thmy)
-
-
-
-let build_apply' with_evars thm bl ok gl =
-  (* get the list of numbers of non dep hypothesis that are explicitly
-     bound from the complete binding list*)
-  let rec mkexcludes = function
-    | [] -> []
-    | (_, AnonHyp n, _) :: l -> n :: mkexcludes l
-    | _ :: l -> mkexcludes l in
-
-  (* call the previous function only on explicit bindings
-     (with (x := ..) ..) and not on implicit ones (with v1 v2 ...) *)
-
-  let exclude_num =
-    match bl with
-    | NoBindings
-    | ImplicitBindings _ -> [] (* implicit bindings only concerns dep hypothesis *)
-    | ExplicitBindings ebs -> mkexcludes ebs in
-
-
-  let concl_nprod = nb_prod (pf_concl gl) in
-  let thm_ty = Reductionops.nf_betaiota (project gl) (pf_type_of gl thm) in
-  (* to which tactic the tag of the sub-goals are passed *)
-  let cont =
-    match ok with
-    | None ->
-        (match fst_case () with
-        | None -> error "The first case tactic has not been registered"
-        | Some c -> c)
-    | Some k -> make_cont k in
-  (* specialized version of list_of_no_dep_names *)
-  let build_lst_name = list_of_no_dep_names concl_nprod exclude_num in
-  
-  (* reduce as much as possible a term *)
-  let rec real_red thm =
-    try
-      let red_thm = Tacred.try_red_product (pf_env gl) (project gl) thm in
-      real_red red_thm
-    with
-      Tacred.Redelimination -> thm in
-  let red_thm = real_red thm_ty in
-  let array_name = 
-    match (build_lst_name red_thm) with
-    | None -> [||]
-    | Some l -> Array.of_list l in
-  tclTHEN_i 
-    ((select_app_tac with_evars) (thm, bl)) 
-    (fun i ->
-      if i <= 0 then error "A negative sub goal??"
-      else if i > Array.length array_name then
-        error ("Not enough tags for subgoals. If the apply"^
-        " tactic did not do second order unification, "^
-        "then this is a bug")
-      else
-        cont (array_name.(i - 1))) gl
-
-
-TACTIC EXTEND apply'
-| ["apply'" constr_with_bindings(c) tactic_opt(ok) ] ->
-    [ let thm,bl = sig_it c in build_apply' false thm bl ok]
-END
-TACTIC EXTEND eapply'
-| ["eapply'" constr_with_bindings(c) tactic_opt(ok) ] ->
-    [ let thm,bl = sig_it c in build_apply' true thm bl ok]
-END
-
-
-
-
-let mk_constructor with_evars optnum ok gl =
-  let cl = pf_concl gl in
-  let (mind,redcl) = pf_reduce_to_quantified_ind gl cl in
-  let nconstr =
-    Array.length (snd (Global.lookup_inductive mind)).Declarations.mind_consnames in
-  (* list of numbers of constructors we want to try to apply *)
-  let ln =
-    match optnum with
-    | None -> interval 1 nconstr
-    | Some n ->
-        if n <= 0 then error "The constructors are numbered starting from 1."
-        else if n > nconstr then error "Not enough constructors."
-        else
-          [n] in
-  let all_apply_tacs =
-    tclFIRST (List.map (fun i ->
-      build_apply'
-        with_evars (mkConstruct (ith_constructor_of_inductive mind i))
-        NoBindings ok) ln) in
-  (tclTHENLIST
-     [convert_concl_no_check redcl DEFAULTcast; Tactics.intros; all_apply_tacs]) gl
-
-
-
-(* we can't use directly integer, because it expects a direct integer
-   constant. So we use int_or_var. But we want the var to have been
-   substituted, so we fail it has not been *)
-
-let ioa_to_int = function
-  | ArgArg i -> i
-  | _ -> error "You must pass an integer"
-
-TACTIC EXTEND constructor'
-| ["constructor'" int_or_var(n) tactic_opt(ok) ] ->
-    [ mk_constructor false (Some (ioa_to_int n)) ok ]
-| ["constructor'" tactic_opt(ok) ] ->
-    [ mk_constructor false None ok]
-END
-TACTIC EXTEND econstructor'
-| ["econstructor'" int_or_var(n) tactic_opt(ok) ] ->
-    [ mk_constructor true (Some (ioa_to_int n)) ok ]
-| ["econstructor'" tactic_opt(ok) ] ->
-    [ mk_constructor true None ok]
-END
-
-(*
-TACTIC EXTEND econstructor_aux
-| ["econstructor_aux" int_or_var(n) "resin" ident(id) ] ->
-    [ mk_constructor true (Some (ioa_to_int n)) id ]
-| ["econstructor_aux" "resin" ident(id) ] ->
-    [ mk_constructor true None id]
-END
-
-*)
