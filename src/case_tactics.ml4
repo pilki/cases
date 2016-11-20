@@ -84,7 +84,13 @@ let string_of_constr ?(with_notations=true) env c =
   msg_with Format.str_formatter stream;
   (* change back the printing of notations *)
   Constrextern.print_no_symbol := back_notation;
-  Format.flush_str_formatter ()
+  let result = Format.flush_str_formatter () in
+  (* Remove eventual leading @. This is fragile because
+     depends on the implicit arguments *)
+  if String.length result >0 && result.[0] = '@' then
+    String.sub result 1 (String.length result - 1)
+  else
+    result
 
 let coqstring_of_constr ?(with_notations=true) env c =
   coqstring_of_string (string_of_constr ~with_notations env c)

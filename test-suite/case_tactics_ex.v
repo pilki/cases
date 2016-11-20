@@ -124,7 +124,7 @@ Proof.
   intros A B f l.
   induction' l as [| a l'].
 
-  Case "@nil".
+  Case "nil".
   reflexivity.
 
   Case "cons a l'".
@@ -145,7 +145,7 @@ Require Import List.
 Goal forall l: list nat, l = nil \/ l = hd 0 l :: tl l.
 Proof.
   case' l as [|n l'] _eqn.
-  Case "@nil".
+  Case "nil".
     left. reflexivity.
   Case "cons n l'".
     right. simpl. reflexivity.
